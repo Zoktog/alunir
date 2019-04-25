@@ -1,0 +1,54 @@
+version: 0.2
+
+env:
+  parameter-store:
+    AWS_ACCESS_KEY_ID: "/laurel/aws/AWS_ACCESS_KEY_ID"
+    AWS_SECRET_ACCESS_KEY: "/laurel/aws/AWS_SECRET_ACCESS_KEY"
+    COINCHECK_KEY: "/laurel/coincheck/COINCHECK_KEY"
+    COINCHECK_SECRET_KEY: "/laurel/coincheck/COINCHECK_SECRET_KEY"
+    COINBASE_KEY: "/laurel/coinbase/COINBASE_KEY"
+    COINBASE_SECRET_KEY: "/laurel/coinbase/COINBASE_SECRET_KEY"
+    BITFINEX_KEY_ID: "/laurel/bitfinex/BITFINEX_KEY_ID"
+    BITFINEX_KEY: "/laurel/bitfinex/BITFINEX_KEY"
+    BITFINEX_SECRET_KEY: "/laurel/bitfinex/BITFINEX_SECRET_KEY"
+    BINANCE_KEY: "/laurel/binance/BINANCE_KEY"
+    BINANCE_SECRET_KEY: "/laurel/binance/BINANCE_SECRET_KEY"
+    KUCOIN_KEY: "/laurel/kucoin/KUCOIN_KEY"
+    KUCOIN_SECRET_KEY: "/laurel/kucoin/KUCOIN_SECRET_KEY"
+    BITFLYER_KEY: "/laurel/bitflyer/BITFLYER_KEY"
+    BITFLYER_SECRET_KEY: "/laurel/bitflyer/BITFLYER_SECRET_KEY"
+    DERIBIT_KEY: "/laurel/deribit/DERIBIT_KEY"
+    DERIBIT_SECRET_KEY: "/laurel/deribit/DERIBIT_SECRET_KEY"
+    LIQUID_KEY: "/laurel/liquid/LIQUID_KEY"
+    LIQUID_SECRET_KEY: "/laurel/liquid/LIQUID_SECRET_KEY"
+    FORGE_KEY: "/laurel/forge/FORGE_KEY"
+    BITMEX_KEY: "/laurel/bitmex/BITMEX_KEY"
+    BITMEX_SECRET_KEY: "/laurel/bitmex/BITMEX_SECRET_KEY"
+
+phases:
+  install:
+    commands:
+      - echo "\nIS_DOCKER=True" >> .env
+      - echo Store the environment variables
+      - printenv | grep "_KEY" > .private_env
+      - chmod +x **/docker-entrypoint.sh create_containers.sh
+      - echo Install started on `date`
+  pre_build:
+    commands:
+      - make login
+      - echo PreBuild started on `date`
+      - make build_base
+  build:
+    commands:
+      - echo Test started on `date`
+      - make test
+      - echo Test completed on `date`
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: "artifacts"
+
+cache:
+  paths:
+    - '/root/.cache/bazel/_bazel_root/**/*'

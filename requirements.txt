@@ -1,0 +1,6 @@
+git+https://git@github.com/alunir/xross_common.git#egg=xross_common
+numba
+ccxt
+dateutils
+bitmex-websocket
+pandas
