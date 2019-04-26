@@ -8,14 +8,14 @@ services:
         - alunir/main/resources/private.env
         - alunir/main/resources/bband_strategy.env
       volumes:
-        - ./:/home
+       - ./:/home
+      working_dir: /home
       depends_on:
         - db
       links:
         - db
       stdin_open: true
       tty: true
-      working_dir: /home/
       entrypoint: python alunir/main/strategy/bitmex/bband_strategy.py
 
     db:
@@ -28,6 +28,6 @@ services:
       env_file:
         - alunir/main/resources/common.env
       volumes:
-        - ./:/home
-      working_dir: /home/
-      entrypoint: pytest
+       - ./:/home
+      working_dir: /home
+      entrypoint: pytest -v
