@@ -28,14 +28,15 @@ class ReloadableJsondict(Dotdict):
 
     def reload(self):
         try:
-            mtime = os.path.getmtime(self.jsonfile)
+            mtime = os.path.getmtime(self.path)
             if mtime > self.mtime:
                 json_dict = json.load(open(self.path, 'r'), object_hook=Dotdict)
                 self.update(json_dict)
                 self.mtime = mtime
                 self.reloaded = True
         except Exception as e:
-            self.logger.warning(type(e).__name__ + ": {0}".format(e))
+            self.logger.warning(type(e).__name__ + ": %s where %s" % (e, self.path))
+            raise e
         return self
 
 

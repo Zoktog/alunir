@@ -4,3 +4,4 @@ ccxt
 dateutils
 bitmex-websocket
 pandas
+pytest

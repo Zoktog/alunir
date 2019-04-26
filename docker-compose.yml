@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+    bband_strategy:
+      image: alunir:latest
+      env_file:
+        - alunir/main/resources/common.env
+        - alunir/main/resources/private.env
+        - alunir/main/resources/bband_strategy.env
+      volumes:
+        - ./:/home
+      depends_on:
+        - db
+      links:
+        - db
+      stdin_open: true
+      tty: true
+      working_dir: /home/
+      entrypoint: python alunir/main/strategy/bitmex/bband_strategy.py
+
+    db:
+      image: instructure/dynamo-local-admin
+      ports:
+        - 8888:8888
+
+    test:
+      image: alunir:latest
+      env_file:
+        - alunir/main/resources/common.env
+      volumes:
+        - ./:/home
+      working_dir: /home/
+      entrypoint: pytest

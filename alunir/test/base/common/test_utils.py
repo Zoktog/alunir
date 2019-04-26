@@ -13,11 +13,11 @@ class TestUtil(XrossTestBase):
         self.assertEqual(4, d.b)
 
     def test_reloadablejsondict(self):
-        d = ReloadableJsondict('test/resources/test.json')
+        d = ReloadableJsondict('/alunir/test/resources/test.json')
 
-        self.assertEqual(0, d.mtime)
-        self.assertFalse(d.reloaded)
-        self.assertRegex(d.path, '.*/common')
+        self.assertTrue(d.mtime > 0)
+        self.assertTrue(d.reloaded)
+        self.assertRegex(d.path, '.*/alunir/test/resources/test.json')
 
 
 if __name__ == '__main__':
