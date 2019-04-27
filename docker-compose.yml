@@ -11,17 +11,22 @@ services:
        - ./:/home
       working_dir: /home
       depends_on:
-        - db
+        - sqlite
       links:
-        - db
+        - sqlite
       stdin_open: true
       tty: true
       entrypoint: python alunir/main/strategy/bitmex/bband_strategy.py
 
-    db:
+    sqlite:
       image: instructure/dynamo-local-admin
       ports:
         - 8888:8888
+
+    influxdb:
+      image: influxdb:latest
+      ports:
+        - 9999:9999
 
     test:
       image: alunir:latest
