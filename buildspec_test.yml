@@ -31,9 +31,9 @@ env:
 phases:
   install:
     commands:
-      - echo "\nIS_DOCKER=True" >> .env
+      - echo "\nIS_DOCKER=True" >> ./alunir/main/resources/common.env
       - echo Store the environment variables
-      - printenv | grep "_KEY" > .private_env
+      - printenv | grep "_KEY" > ./alunir/main/resources/private.env
       - echo Install started on `date`
   pre_build:
     commands:
