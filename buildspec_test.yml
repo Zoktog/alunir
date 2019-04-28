@@ -43,5 +43,5 @@ phases:
   build:
     commands:
       - echo Test started on `date`
-      - pytest -v
+      - docker-compose up test
       - echo Test completed on `date`
