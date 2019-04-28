@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+    bband_strategy:
+      image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir-build
+      env_file:
+        - alunir/main/resources/common.env
+        - alunir/main/resources/private.env
+        - alunir/main/resources/bband_strategy.env
+      volumes:
+       - ./:/home
+      working_dir: /home
+      depends_on:
+        - sqlite
+      links:
+        - sqlite
+      stdin_open: true
+      tty: true
+      entrypoint: python alunir/main/strategy/bitmex/bband_strategy.py
+
+    sqlite:
+      image: instructure/dynamo-local-admin
+      ports:
+        - 8888:8888
+
+    influxdb:
+      image: influxdb:latest
+      ports:
+        - 9999:9999
+
+    test:
+      image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir-build
+      env_file:
+        - alunir/main/resources/common.env
+      volumes:
+       - ./:/home
+      working_dir: /home
+      entrypoint: pytest -v
