@@ -2,7 +2,7 @@ version: '3'
 
 services:
     bband_strategy:
-      image: alunir-build:latest
+      image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir-build
       env_file:
         - alunir/main/resources/common.env
         - alunir/main/resources/private.env
@@ -29,7 +29,7 @@ services:
         - 9999:9999
 
     test:
-      image: alunir-build:latest
+      image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir-build
       env_file:
         - alunir/main/resources/common.env
       volumes:
