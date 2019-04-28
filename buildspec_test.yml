@@ -43,5 +43,5 @@ phases:
   build:
     commands:
       - echo Test started on `date`
-      - docker-compose up test || exit 1
+      - docker-compose up --exit-code-from test || exit 1
       - echo Test completed on `date`
