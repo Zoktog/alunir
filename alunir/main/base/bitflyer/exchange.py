@@ -4,27 +4,30 @@ from time import sleep, time
 from datetime import datetime, timedelta
 import concurrent.futures
 import ccxt
-import logging
 import json
 from alunir.main.base.common.utils import Dotdict
-from .order import OrderManager
+from alunir.main.base.common.order import OrderManager
 from .webapi2 import LightningAPI, LightningError
 from collections import OrderedDict, deque
 from math import fsum
+from xross_common.SystemLogger import SystemLogger
 
 
 class Exchange:
+    logger, test_handler = SystemLogger(__name__).get_logger()
 
-    def __init__(self, apiKey = '', secret = ''):
+    def __init__(self, apiKey='', secret=''):
         self.apiKey = apiKey
         self.secret = secret
-        self.logger = logging.getLogger(__name__)
         self.responce_times = deque(maxlen=3)
         self.lightning_enabled = False
         self.lightning_collateral = None
         self.order_is_not_accepted = None
         self.ltp = 0
         self.last_position_size = 0
+        self.running = False
+        self.exchange = None
+        self.om = None
 
     def safe_api_call(self, func):
         @wraps(func)
@@ -61,7 +64,7 @@ class Exchange:
         self.running = True
 
         # 取引所セットアップ
-        self.exchange = ccxt.bitflyer({'apiKey':self.apiKey,'secret':self.secret})
+        self.exchange = ccxt.bitflyer({'apiKey': self.apiKey, 'secret': self.secret})
         self.exchange.urls['api'] = 'https://api.bitflyer.com'
         self.exchange.timeout = 60 * 1000
 
@@ -121,7 +124,7 @@ class Exchange:
         return self.om.get_order(myid)
 
     def get_open_orders(self):
-        orders = self.om.get_orders(status_filter = ['open', 'accepted'])
+        orders = self.om.get_orders(status_filter=['open', 'accepted'])
         orders_by_myid = OrderedDict()
         for o in orders.values():
             orders_by_myid[o['myid']] = o
@@ -320,7 +323,7 @@ class Exchange:
     def check_order_execution(self, executions):
         if len(executions):
             self.ltp = executions[-1]['price']
-            my_orders = self.om.get_orders(status_filter = ['open', 'accepted', 'cancel','canceled'])
+            my_orders = self.om.get_orders(status_filter=['open', 'accepted', 'cancel', 'canceled'])
             if len(my_orders):
                 for e in executions:
                     o = my_orders.get(e['buy_child_order_acceptance_id'], None)

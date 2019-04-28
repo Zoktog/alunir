@@ -39,6 +39,4 @@ def bband_strategy(ticker, ohlcv, position, balance, strategy):
 
 if __name__ == "__main__":
     strategy = Strategy(bband_strategy)
-    strategy.settings.timeframe = '15m'
-    strategy.settings.interval = 30
     strategy.start()
