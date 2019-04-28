@@ -72,13 +72,36 @@ class Exchange:
         self.ws = None
 
     def start(self):
-        self.logger.info('Start Exchange')
         self.running = True
 
         # 取引所セットアップ
-        self.exchange = ccxt.bitflyer({'apiKey': self.apiKey, 'secret': self.secret})
-        self.exchange.urls['api'] = 'https://api.bitflyer.com'
-        self.exchange.timeout = 60 * 1000
+        if self.testnet.use:
+            self.exchange = getattr(ccxt, self.settings.exchange)({
+                'apiKey': self.testnet.apiKey,
+                'secret': self.testnet.secret,
+                })
+            self.exchange.urls['api'] = self.exchange.urls['test']
+            self.logger.info('Start Test Exchange')
+        else:
+            self.exchange = getattr(ccxt, self.settings.exchange)({
+                'apiKey': self.settings.apiKey,
+                'secret': self.settings.secret,
+                })
+            self.logger.info('Start Exchange')
+        self.exchange.load_markets()
+
+        # マーケット一覧表示
+        for k, v in self.exchange.markets.items():
+            self.logger.info('Markets: ' + v['symbol'])
+
+        # マーケット情報表示
+        market = self.exchange.market(self.settings.symbol)
+        self.logger.info('{symbol}: base:{base}'.format(**market))
+        self.logger.info('{symbol}: quote:{quote}'.format(**market))
+        self.logger.info('{symbol}: active:{active}'.format(**market))
+        self.logger.info('{symbol}: taker:{taker}'.format(**market))
+        self.logger.info('{symbol}: maker:{maker}'.format(**market))
+        self.logger.info('{symbol}: type:{type}'.format(**market))
 
         self.om = OrderManager()
 
@@ -86,7 +109,7 @@ class Exchange:
         symbol = symbol or self.settings.symbol
         timeframe = timeframe or self.settings.timeframe
         book = self.exchange.fetch_order_book(symbol, limit=1)
-        trade = self.exchange.fetch_trades(symbol, limit=1, reverse=True)
+        trade = self.exchange.fetch_trades(symbol, limit=1, params={"reverse": True})
         ticker = Dotdict()
         ticker.bid = book['bids'][0][0]
         ticker.ask = book['asks'][0][0]
@@ -94,7 +117,6 @@ class Exchange:
         ticker.datetime = pd.to_datetime(trade[0]['datetime'])
         self.logger.info("TICK: bid {bid} ask {ask} last {last}".format(**ticker))
         return ticker
-
 
     def fetch_ticker_ws(self):
         trade = self.ws.recent_trades()[-1]

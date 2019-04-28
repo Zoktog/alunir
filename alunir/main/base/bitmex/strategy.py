@@ -185,6 +185,12 @@ class Strategy:
         # 注文
         self.order(myid, side, qty, limit, stop, symbol)
 
+    def edit_order(self, id, symbol, type, side, qty, price, params):
+        return self.exchange.edit_order(id, symbol, type, side, qty, price, params)
+
+    def cancel(self, myid):
+        return self.exchange.cancel_order(myid)
+
     def update_ohlcv(self, ticker_time=None, force_update=False):
         if self.settings.partial or force_update:
             self.ohlcv = self.exchange.fetch_ohlcv()
@@ -213,32 +219,7 @@ class Strategy:
         self.validate("self.settings.apiKey")
         self.validate("self.settings.secret")
 
-        # 取引所セットアップ
-        if self.testnet.use:
-            self.exchange = getattr(ccxt, self.settings.exchange)({
-                'apiKey': self.testnet.apiKey,
-                'secret': self.testnet.secret,
-                })
-            self.exchange.urls['api'] = self.exchange.urls['test']
-        else:
-            self.exchange = getattr(ccxt, self.settings.exchange)({
-                'apiKey': self.settings.apiKey,
-                'secret': self.settings.secret,
-                })
-        self.exchange.load_markets()
-
-        # マーケット一覧表示
-        for k, v in self.exchange.markets.items():
-            self.logger.info('Markets: ' + v['symbol'])
-
-        # マーケット情報表示
-        market = self.exchange.market(self.settings.symbol)
-        self.logger.info('{symbol}: base:{base}'.format(**market))
-        self.logger.info('{symbol}: quote:{quote}'.format(**market))
-        self.logger.info('{symbol}: active:{active}'.format(**market))
-        self.logger.info('{symbol}: taker:{taker}'.format(**market))
-        self.logger.info('{symbol}: maker:{maker}'.format(**market))
-        self.logger.info('{symbol}: type:{type}'.format(**market))
+        self.exchange.start()
 
     def add_arguments(self, parser):
         parser.add_argument('--apikey', type=str, default=self.settings.apiKey)
