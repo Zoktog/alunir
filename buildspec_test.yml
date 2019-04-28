@@ -39,7 +39,7 @@ phases:
     commands:
       - $(aws ecr get-login --no-include-email --region ${AWS_DEFAULT_REGION})
       - echo PreBuild started on `date`
-      - docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir
+      - docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir-build
   build:
     commands:
       - echo Test started on `date`
