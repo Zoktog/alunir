@@ -33,6 +33,6 @@ services:
       env_file:
         - alunir/main/resources/common.env
       volumes:
-       - ./:/home
+        - ./:/home
       working_dir: /home
       entrypoint: pytest -v

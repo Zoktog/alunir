@@ -1,0 +1,9 @@
+#!/bin/bash
+# MEMO: Right one will override the left one
+export $(grep -h AWS_ ./alunir/main/resources/*.env | xargs)
+# MEMO: if you use bazel test with env. variables, set the following line.
+echo "Successfully set environment variables."
+
+`aws ecr get-login --no-include-email --region ap-northeast-1`
+docker-compose pull $1
+docker-compose up $1
