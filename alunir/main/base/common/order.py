@@ -3,14 +3,21 @@ import threading
 from collections import OrderedDict, deque
 from alunir.main.base.common.utils import Dotdict
 
+from xross_common.SystemLogger import SystemLogger
+
+
+class OrderNotFoundException(BaseException):
+    pass
+
 
 class OrderManager:
+    logger, test_handler = SystemLogger(__name__).get_logger()
 
     INVALID_ORDER = Dotdict({
         'No': 0,
         'myid': '__INVALID_ORDER__',
         'id': '__INVALID_ORDER__',
-        'datetime': '2018-9-1T0:00:00.000',
+        'accepted_at': '1989-10-28T0:00:00.000',
         'status': 'closed',
         'symbol': 'FX_BTC_JPY',
         'type': 'market',
@@ -23,17 +30,16 @@ class OrderManager:
         'fee': 0,
     })
 
-    def __init__(self):
-        self.orders = OrderedDict()
-        self.lock = threading.Lock()
-        self.number_of_orders = 0
-        self.positions = deque()
+    lock = threading.Lock()
+    number_of_orders = 0
+    orders = OrderedDict()
+    positions = deque()
 
     def add_order(self, new_order):
         with self.lock:
             self.number_of_orders += 1
             new_order['No'] = self.number_of_orders
-            self.orders[new_order['id']] = new_order
+            self.orders[new_order['myid']] = new_order
         return new_order
 
     def add_position(self, p):
@@ -112,7 +118,7 @@ class OrderManager:
                     latest['status'] = o['status']
             if latest['filled'] < o['filled']:
                 latest['filled'] = o['filled']
-            for k in ['id', 'datetime', 'status', 'average_price', 'filled', 'remaining' ,'fee']:
+            for k in ['id', 'accepted_at', 'status', 'average_price', 'filled', 'remaining', 'fee']:
                 o[k] = latest[k]
 
     def cancel_order(self, myid):
@@ -136,9 +142,7 @@ class OrderManager:
             my_orders = [v for v in self.orders.values() if v['myid'] == myid]
         if len(my_orders):
             return my_orders[-1]
-        o = self.INVALID_ORDER.copy()
-        o['myid'] = myid
-        return Dotdict(o)
+        raise OrderNotFoundException("MyOrderID:%s is not found." % myid)
 
     def get_open_orders(self):
         return self.get_orders(status_filter=['open', 'accepted', 'cancel'])
@@ -150,6 +154,10 @@ class OrderManager:
             else:
                 my_orders = {k: v for k, v in self.orders.items() if (v['status'] in status_filter)}
         return my_orders
+
+    def update_order(self, o):
+        self.get_order(o['myid']).update(o)
+        return o
 
     def cleaning_if_needed(self, limit_orders=200, remaining_orders=20):
         """注文情報整理"""

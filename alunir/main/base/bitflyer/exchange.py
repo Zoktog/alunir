@@ -422,7 +422,7 @@ class Exchange:
 
     def __lightning_create_order(self, myid, side, qty, limit, stop, time_in_force, minute_to_expire, symbol):
         # raise LightningError({'status':-208})
-        qty = round(qty,8) # 有効桁数8桁
+        qty = round(qty, 8)  # 有効桁数8桁
         ord_type = 'MARKET'
         if limit is not None:
             ord_type = 'LIMIT'
