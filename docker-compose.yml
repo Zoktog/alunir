@@ -21,18 +21,18 @@ services:
     sqlite:
       image: instructure/dynamo-local-admin
       ports:
-        - 8888:8888
+        - 8888:8000
 
     influxdb:
       image: influxdb:latest
       ports:
-        - 9999:9999
+        - 8001:8001
 
     test:
       image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir-build
       env_file:
         - alunir/main/resources/common.env
       volumes:
-       - ./:/home
+        - ./:/home
       working_dir: /home
       entrypoint: pytest -v

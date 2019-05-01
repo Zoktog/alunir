@@ -8,6 +8,7 @@ from time import sleep, time
 import ccxt
 import pandas as pd
 from xross_common.SystemLogger import SystemLogger
+from xross_common.SystemUtil import SystemUtil
 
 from alunir.main.base.common.utils import Dotdict
 from .exchange import Exchange
@@ -15,8 +16,10 @@ from .streaming import Streaming
 
 
 class Strategy:
+    cfg = SystemUtil(skip=True)
+    logger, test_handler = SystemLogger(__name__).get_logger()
 
-    def __init__(self, yourlogic, interval=60, yoursetup = None):
+    def __init__(self, yourlogic, yoursetup=None):
 
         # トレーディングロジック設定
         self.yourlogic = yourlogic
@@ -41,8 +44,8 @@ class Strategy:
         self.settings.lightning_password = ''
 
         # 動作タイミング
-        self.settings.interval = interval
-        self.settings.timeframe = 60
+        self.settings.interval = int(self.cfg.get_env("INTERVAL", default=60))
+        self.settings.timeframe = self.cfg.get_env("TIMEFRAME", default=60)
 
         # OHLCV生成オプション
         self.settings.max_ohlcv_size = 1000
@@ -61,7 +64,7 @@ class Strategy:
         self.risk.max_num_of_orders = 1
 
         # ログ設定
-        self.logger, self.test_handler = SystemLogger(__name__).get_logger()
+        # self.logger, self.test_handler = SystemLogger(__name__).get_logger()
         # self.logger = logging.getLogger(__name__)
         # self.create_rich_ohlcv = stop_watch(self.create_rich_ohlcv)
 
