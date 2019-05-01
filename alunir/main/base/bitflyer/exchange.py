@@ -229,7 +229,7 @@ class Exchange:
                 balance[v['currency_code']] = Dotdict(v)
         return balance
 
-    def fetch_balance(self, _async = True):
+    def fetch_balance(self, _async=True):
         """資産情報取得"""
         if _async:
             return self.executor.submit(self.safe_fetch_balance)
