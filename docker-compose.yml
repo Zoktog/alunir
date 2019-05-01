@@ -18,6 +18,23 @@ services:
       tty: true
       entrypoint: python alunir/main/strategy/bitmex/bband_strategy.py
 
+    mmbot:
+      image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir-build
+      env_file:
+        - alunir/main/resources/common.env
+        - alunir/main/resources/private.env
+        - alunir/main/resources/mmbot.env
+      volumes:
+       - ./:/home
+      working_dir: /home
+      depends_on:
+        - sqlite
+      links:
+        - sqlite
+      stdin_open: true
+      tty: true
+      entrypoint: python alunir/main/strategy/bitflyer/mmbot.py
+
     sqlite:
       image: instructure/dynamo-local-admin
       ports:
