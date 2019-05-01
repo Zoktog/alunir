@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
 from alunir.main.base.bitmex.strategy import Strategy
 from alunir.main.base.common.indicator import *
+from alunir.main.base.common.strategy import StrategyBase
 
 length = 20
 multi = 2
 
 
-class bband_strategy:
-    def __init__(self):
+class BbandStrategy(StrategyBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        pass
+
+    def use(self, *args):
         pass
 
     def bizlogic(self, ohlcv, ticker, position, balance, executions, strategy, **other):
@@ -41,5 +46,5 @@ class bband_strategy:
 
 
 if __name__ == "__main__":
-    strategy = Strategy(bband_strategy)
+    strategy = Strategy(BbandStrategy)
     strategy.start()

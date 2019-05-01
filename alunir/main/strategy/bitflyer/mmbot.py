@@ -2,6 +2,7 @@
 import datetime
 from alunir.main.base.bitflyer.strategy import Strategy
 from alunir.main.base.common.indicator import *
+from alunir.main.base.common.strategy import StrategyBase
 from math import floor, ceil
 
 
@@ -35,15 +36,19 @@ no_trade_time_range = [
 ]
 
 
-class mmbot:
+class MMBot(StrategyBase):
     wait = 0
     n = 0
     maxslots = 1
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.wait = 0
         self.n = 0
         self.maxslots = 1
+
+    def use(self, *args):
+        pass
 
     def bizlogic(self, ohlcv, ticker, position, balance, executions, strategy, **other):
 
@@ -154,7 +159,7 @@ class mmbot:
 
 
 if __name__ == "__main__":
-    strategy = Strategy(mmbot)
+    strategy = Strategy(MMBot)
     strategy.settings.show_last_n_orders = 10
     strategy.risk.max_position_size = 0.05
     strategy.start()
