@@ -3,7 +3,7 @@ import ccxt
 from time import sleep
 import pandas as pd
 from datetime import datetime, timedelta
-from bitmex_websocket import BitMEXWebsocket
+from tuned_bitmex_websocket.tuned_bitmex_websocket import BitMEXWebsocket
 from alunir.main.base.common.order import OrderManager
 from xross_common.Dotdict import Dotdict
 from xross_common.SystemLogger import SystemLogger
