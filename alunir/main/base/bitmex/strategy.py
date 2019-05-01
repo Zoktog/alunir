@@ -4,9 +4,9 @@ from time import sleep
 import ccxt
 from xross_common.SystemLogger import SystemLogger
 from xross_common.SystemUtil import SystemUtil
-from alunir.main.base.bitmex.exchange import Exchange
 
-from alunir.main.base.common.utils import Dotdict
+from alunir.main.base.bitmex.exchange import Exchange
+from alunir.main.base.common.utils import Dotdict, validate
 
 
 class Strategy:
@@ -35,7 +35,7 @@ class Strategy:
 
         # テストネット設定
         self.testnet = Dotdict()
-        self.testnet.use = True
+        self.testnet.use = self.cfg.get_env("BITMEX_TEST_MODE", default=True)
         self.testnet.apiKey = self.cfg.get_env("TEST_BITMEX_KEY")
         self.testnet.secret = self.cfg.get_env("TEST_BITMEX_SECRET_KEY")
 
@@ -209,17 +209,15 @@ class Strategy:
                 if timestamp[-1] >= next_fetch_time:
                     self.ohlcv_updated = True
 
-    def validate(self, value, error=ValueError):
-        if not eval(value):
-            raise error('Validation Exception: %s was %s' % (value, eval(value)))
-
     def setup(self):
-        self.validate("self.testnet.apiKey")
-        self.validate("self.testnet.secret")
-        self.validate("self.settings.apiKey")
-        self.validate("self.settings.secret")
+        validate(self, "self.testnet.apiKey")
+        validate(self, "self.testnet.secret")
+        validate(self, "self.settings.apiKey")
+        validate(self, "self.settings.secret")
 
         self.exchange.start()
+
+        self.yourlogic()
 
     def add_arguments(self, parser):
         parser.add_argument('--apikey', type=str, default=self.settings.apiKey)
@@ -285,8 +283,9 @@ class Strategy:
                     'ohlcv': self.ohlcv,
                     'position': self.position,
                     'balance': self.balance,
+                    'executions': None
                 }
-                self.yourlogic(**arg)
+                self.yourlogic.bizlogic(self.yourlogic, **arg)
 
                 # 通常待ち
                 sleep(self.settings.interval)

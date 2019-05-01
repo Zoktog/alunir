@@ -56,3 +56,8 @@ def stop_watch(func):
         print("Processing time for {0}:{1:.3f}{2}".format(func.__name__, process_time, units))
         return result
     return wrapper
+
+
+def validate(self, value, error=ValueError):
+    if not eval(value):
+        raise error('Validation Exception: %s was %s' % (value, eval(value)))
