@@ -191,7 +191,7 @@ class Exchange:
             for r in res:
                 size = r['size'] if r['side'] == 'BUY' else r['size'] * -1
                 cost = (position.avgCostPrice * abs(position.currentQty) + r['price'] * abs(size))
-                position.currentQty = round(position.currentQty + size,8)
+                position.currentQty = round(position.currentQty + size, 8)
                 position.avgCostPrice = int(cost / abs(position.currentQty))
                 position.unrealisedPnl = position.unrealisedPnl + r['pnl']
                 self.logger.info('{side} {price} {size} ({pnl})'.format(**r))
@@ -229,7 +229,7 @@ class Exchange:
                 balance[v['currency_code']] = Dotdict(v)
         return balance
 
-    def fetch_balance(self, _async = True):
+    def fetch_balance(self, _async=True):
         """資産情報取得"""
         if _async:
             return self.executor.submit(self.safe_fetch_balance)

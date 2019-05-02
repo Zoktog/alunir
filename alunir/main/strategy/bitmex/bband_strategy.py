@@ -1,42 +1,50 @@
 # -*- coding: utf-8 -*-
 from alunir.main.base.bitmex.strategy import Strategy
 from alunir.main.base.common.indicator import *
+from alunir.main.base.common.strategy import StrategyBase
 
 length = 20
 multi = 2
 
 
-def bband_strategy(ticker, ohlcv, position, balance, strategy):
+class BbandStrategy(StrategyBase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        pass
 
-    # インジケーター作成
-    source = ohlcv.close
-    basis = sma(source, length)
-    dev = multi * stdev(source, length)
-    upper = basis + dev
-    lower = basis - dev
+    def use(self, *args):
+        pass
 
-    # エントリー・エグジット
-    buyEntry = crossover(source, lower)
-    sellEntry = crossunder(source, upper)
-    strategy.logger.info('Lower ' + str(last(lower)) + ' Upper ' + str(last(upper)))
+    def bizlogic(self, ohlcv, ticker, position, balance, executions, strategy, **other):
+        # インジケーター作成
+        source = ohlcv.close
+        basis = sma(source, length)
+        dev = multi * stdev(source, length)
+        upper = basis + dev
+        lower = basis - dev
 
-    # ロット数計算
-    qty_lot = int(balance.BTC.free * 0.01 * ticker.last)
+        # エントリー・エグジット
+        buyEntry = crossover(source, lower)
+        sellEntry = crossunder(source, upper)
+        strategy.logger.info('Lower ' + str(last(lower)) + ' Upper ' + str(last(upper)))
 
-    # 最大ポジション数設定
-    strategy.risk.max_position_size = qty_lot
+        # ロット数計算
+        qty_lot = int(balance.BTC.free * 0.01 * ticker.last)
 
-    # 注文（ポジションがある場合ドテン）
-    if last(buyEntry):
-      strategy.entry('L', 'buy', qty=qty_lot, limit=ticker.bid)
-    else:
-      strategy.cancel('L')
-    if last(sellEntry):
-      strategy.entry('S', 'sell', qty=qty_lot, limit=ticker.ask)
-    else:
-      strategy.cancel('S')
+        # 最大ポジション数設定
+        strategy.risk.max_position_size = qty_lot
+
+        # 注文（ポジションがある場合ドテン）
+        if last(buyEntry):
+          strategy.entry('L', 'buy', qty=qty_lot, limit=ticker.bid)
+        else:
+          strategy.cancel('L')
+        if last(sellEntry):
+          strategy.entry('S', 'sell', qty=qty_lot, limit=ticker.ask)
+        else:
+          strategy.cancel('S')
 
 
 if __name__ == "__main__":
-    strategy = Strategy(bband_strategy)
+    strategy = Strategy(BbandStrategy)
     strategy.start()

@@ -19,29 +19,29 @@ class Strategy:
     cfg = SystemUtil(skip=True)
     logger, test_handler = SystemLogger(__name__).get_logger()
 
-    def __init__(self, yourlogic, yoursetup=None):
+    def __init__(self, yourlogic):
 
         # トレーディングロジック設定
         self.yourlogic = yourlogic
-        self.yoursetup = yoursetup
 
         # ポジションサイズ
         self.position_size = 0.0
 
         # 取引所情報
         self.settings = Dotdict()
-        self.settings.symbol = 'FX_BTC_JPY'
+        self.settings.exchange = self.cfg.get_env("EXCHANGE", default='bitflyer')
+        self.settings.symbol = self.cfg.get_env("SYMBOL", default='FX_BTC_JPY')
         self.settings.topics = ['ticker', 'executions']
-        self.settings.apiKey = ''
-        self.settings.secret = ''
+        self.settings.apiKey = self.cfg.get_env("BITFLYER_KEY")
+        self.settings.secret = self.cfg.get_env("BITFLYER_SECRET_KEY")
 
         # 取引所
         self.exchange = None
 
         # LightningAPI設定
-        self.settings.use_lightning = False
-        self.settings.lightning_userid = ''
-        self.settings.lightning_password = ''
+        self.settings.use_lightning = self.cfg.get_env("BITFLER_LIGHTNING_API", default=False, type=bool)
+        self.settings.lightning_userid = self.cfg.get_env("BITFLYER_LIGHTNING_USERID")
+        self.settings.lightning_password = self.cfg.get_env("BITFLYER_LIGHTNING_PASSWORD")
 
         # 動作タイミング
         self.settings.interval = int(self.cfg.get_env("INTERVAL", default=60))
@@ -53,7 +53,7 @@ class Strategy:
         self.settings.disable_create_ohlcv = False
         self.settings.disable_rich_ohlcv = False
 
-        # その為
+        # その他
         self.hft = False
         self.settings.show_last_n_orders = 0
         self.settings.safe_order = True
@@ -145,7 +145,6 @@ class Strategy:
               limit=None, stop=None, time_in_force = None, minute_to_expire = None, symbol = None, limit_mask = 0,
               seconds_to_keep_order=None):
         """注文"""
-
         if self.exchange.order_is_not_accepted is not None:
             if not self.hft:
                 self.logger.info("REJECT: %s order is not accepted..." % myid)
@@ -204,14 +203,14 @@ class Strategy:
             # 安全な空の旅
             if self.settings.safe_order:
                 # 前の注文が注文一覧にのるまで次の注文は受け付けない
-                if (order.status == 'accepted'):
+                if order.status == 'accepted':
                     delta = datetime.utcnow() - order.accepted_at
                     if delta < timedelta(seconds=60):
                         if not self.hft:
                             self.logger.info("REJECT: {0} order creating...".format(myid))
                         return
                 # 同じIDのオープン状態の注文が2つ以上ある場合、注文は受け付けない（2つ前の注文がキャンセル中）
-                orders = {k:v for k,v in self.exchange.get_open_orders().items() if v['myid']==myid}
+                orders = {k: v for k, v in self.exchange.get_open_orders().items() if v['myid'] == myid}
                 if len(orders) >= 2:
                     if not self.hft:
                         self.logger.info("REJECT: {0} too many orders...".format(myid))
@@ -296,8 +295,9 @@ class Strategy:
         self.monitoring_ep = ep
 
         # 売買ロジックセットアップ
-        if self.yoursetup:
-            self.yoursetup(self)
+        self.yourlogic()
+
+        self.logger.info("Finished Setup")
 
     def start(self):
         self.logger.info("Start Trading")
@@ -404,13 +404,20 @@ class Strategy:
                     else:
                         ohlcv = self.create_rich_ohlcv(self.ep.get_boundary_ohlcv())
 
+                # 資金情報取得
+                balance = self.fetch_balance()
+
                 # 売買ロジック呼び出し
+                args = {
+                    'strategy': self,
+                    'ticker': ticker,
+                    'ohlcv': ohlcv,
+                    'position': position,
+                    'balance': balance,
+                    'executions': executions
+                }
                 if no_needs_err_wait:
-                    self.yourlogic(
-                        ticker=ticker,
-                        executions=executions,
-                        ohlcv=ohlcv,
-                        strategy=self)
+                    self.yourlogic.bizlogic(self.yourlogic, **args)
                     errorWait = 0
                 else:
                     self.logger.info("Waiting for Error...")

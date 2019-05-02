@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import datetime
 from alunir.main.base.bitflyer.strategy import Strategy
-from alunir.main.base.bitflyer.indicator import *
+from alunir.main.base.common.indicator import *
+from alunir.main.base.common.strategy import StrategyBase
 from math import floor, ceil
 
 
@@ -35,14 +36,21 @@ no_trade_time_range = [
 ]
 
 
-class mmbot:
+class MMBot(StrategyBase):
+    wait = 0
+    n = 0
+    maxslots = 1
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.wait = 0
         self.n = 0
         self.maxslots = 1
 
-    def loop(self, ohlcv, ticker, board_state, strategy, **other):
+    def use(self, *args):
+        pass
+
+    def bizlogic(self, ohlcv, ticker, position, balance, executions, strategy, **other):
 
         self.n += 1
         if self.wait < 3:
@@ -67,7 +75,7 @@ class mmbot:
         volimb = sma(ohlcv.volume_imbalance, 6)[-1]
 
         # 情報表示
-        logger.info(
+        strategy.logger.info(
             'vol %.1f/%.1f/%.1f bid/ask %f/%f(%f) buy/sell %f/%f/%f'
             % (vol, volma1, volma2, bid, ask, spr, limit_buy, limit_sell, spread)
         )
@@ -77,7 +85,7 @@ class mmbot:
         coffee_break = False
         for s, e in no_trade_time_range:
             if t >= s and t <= e:
-                logger.info('Coffee break ...')
+                strategy.logger.info('Coffee break ...')
                 coffee_break = True
                 break
 
@@ -151,23 +159,7 @@ class mmbot:
 
 
 if __name__ == "__main__":
-    from . import settings
-    import argparse
-    import logging
-    import logging.config
-    import signal
-
-    def handle_pdb(sig, frame):
-        import pdb
-        pdb.Pdb().set_trace(frame)
-    signal.signal(signal.SIGUSR1, handle_pdb)
-
-    logging.config.dictConfig(settings.loggingConf('mmbot.log'))
-    logger = logging.getLogger("mmbot")
-
-    strategy = Strategy(mmbot().loop, 5)
-    strategy.settings.apiKey = settings.apiKey
-    strategy.settings.secret = settings.secret
+    strategy = Strategy(MMBot)
     strategy.settings.show_last_n_orders = 10
     strategy.risk.max_position_size = 0.05
     strategy.start()

@@ -1,29 +1,34 @@
 # coding: UTF-8
 import requests
-import logging
 import time
 import json
-import threading
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-import signal
-import sys
+from xross_common.SystemLogger import SystemLogger
+from xross_common.SystemUtil import SystemUtil
+from alunir.main.base.common.utils import validate
+
 
 class LightningError(Exception):
     pass
 
-class LightningAPI:
 
-    def __init__(self, id, password, timeout = 60):
+# TODO: Automatically input 2 factor code
+class LightningAPI:
+    logger, test_handler = SystemLogger(__name__).get_logger()
+
+    def __init__(self, id, password, timeout=60):
         self.id = id
         self.password = password
         self.account_id = ''
         self.timeout = timeout
         self.api_url = 'https://lightning.bitflyer.com/api/trade'
-        self.logger = logging.getLogger(__name__)
         self.session = requests.session()
         self.logon = False
         self.driver = None
+
+        validate(self, "self.id")
+        validate(self, "self.password")
 
         # #ブラウザを起ち上げっぱなしにしたいのでthreading
         # self.thread = threading.Thread(target=lambda: self.login())
@@ -33,13 +38,17 @@ class LightningAPI:
     def login(self):
         """ログイン処理"""
         try:
-            #ヘッドレスブラウザがらみの設定など
+            # ヘッドレスブラウザがらみの設定など
             # WEB_DRIVER_PATH = './chromedriver.exe' #windows
             # WEB_DRIVER_PATH = './chromedriver' #mac linux
-            #ヘッドレスブラウザのオプションを設定
+            cfg = SystemUtil(skip=True)
+            if not cfg.get_env("WEB_DRIVER_PATH"):
+                self.logger.warning("Failed to find WEB_DRIVER_PATH")
+                return
+            # ヘッドレスブラウザのオプションを設定
             options = Options()
             # options.binary_location = 'C:/*********/chrome.exe' #windowsのみPATH指定
-            options.add_argument('--headless') #ヘッドレスモードを有効、指定しなければ通常通りブラウザが立ち上がる
+            options.add_argument('--headless')  # ヘッドレスモードを有効、指定しなければ通常通りブラウザが立ち上がる
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-gpu')
             options.add_argument('--user-agent=Mozilla/5.0 (iPhone; U; CPU iPhone OS 5_1_1 like Mac OS X; en) AppleWebKit/534.46.0 (KHTML, like Gecko) CriOS/19.0.1084.60 Mobile/9B206 Safari/7534.48.3')
@@ -47,12 +56,12 @@ class LightningAPI:
             # ヘッドレスブラウザ(webdriver)インスタンスを作成
             # driver = webdriver.Chrome(WEB_DRIVER_PATH, chrome_options=options)
             self.logger.info('Start WebDriver...')
-            driver = webdriver.Chrome(chrome_options=options)
+            driver = webdriver.Chrome(options=options)
 
             # bitFlyerへアクセス
             self.logger.info('Access lightning...')
             driver.get('https://lightning.bitflyer.jp/')
-            # driver.save_screenshot("login.png")
+            driver.save_screenshot("login.png")
 
             # ログインフォームへID、PASSを入力
             login_id = driver.find_element_by_id('LoginId')
@@ -63,7 +72,7 @@ class LightningAPI:
             # ログインボタンをクリック(2段階認証が無い場合はログイン完了)
             self.logger.info('Login lightning...')
             driver.find_element_by_id('login_btn').click()
-            # driver.save_screenshot("2factor.png")
+            driver.save_screenshot("2factor.png")
 
             # 通常2段階認証の処理が入るが種類が多いので割愛
             print("Input 2 Factor Code >>")
@@ -94,13 +103,13 @@ class LightningAPI:
             #     pass
 
         except Exception as e:
-            self.logger.warning(type(e).__name__ + ": {0}".format(e))
+            self.logger.exception(type(e).__name__ + ": {0}".format(e))
 
     def logoff(self):
         self.logger.info('Lightning Logoff')
         self.driver.quit()
 
-    def sendorder(self, product_code, ord_type, side, price, size, minuteToExpire = 43200, time_in_force = 'GTC'):
+    def sendorder(self, product_code, ord_type, side, price, size, minuteToExpire=43200, time_in_force='GTC'):
         """注文送信"""
         params = {
             'account_id': self.account_id,

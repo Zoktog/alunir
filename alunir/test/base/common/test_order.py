@@ -17,7 +17,7 @@ class TestOrderManager(XrossTestBase):
             self.om.get_order('test1')
             self.fail()
         except OrderNotFoundException as e:
-            self.assertEqual("MyOrderID:test1 is not found.", str(e))
+            self.assertEqual("MyOrderID:test1 is not found. MyOrders:[]", str(e))
 
     def test_add_order(self):
         o = OrderManager.INVALID_ORDER.copy()

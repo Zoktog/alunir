@@ -142,7 +142,7 @@ class OrderManager:
             my_orders = [v for v in self.orders.values() if v['myid'] == myid]
         if len(my_orders):
             return my_orders[-1]
-        raise OrderNotFoundException("MyOrderID:%s is not found." % myid)
+        raise OrderNotFoundException("MyOrderID:%s is not found. MyOrders:%s" % (myid, my_orders))
 
     def get_open_orders(self):
         return self.get_orders(status_filter=['open', 'accepted', 'cancel'])
