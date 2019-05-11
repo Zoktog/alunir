@@ -8,4 +8,5 @@ echo "Successfully set environment variables."
 ecs-cli configure --cluster alunir --config-name alunir --default-launch-type FARGATE --region $AWS_DEFAULT_REGION
 ecs-cli configure profile --access-key $AWS_ACCESS_KEY_ID --secret-key $AWS_SECRET_ACCESS_KEY --profile-name alunir
 
-ecs-cli compose --file docker-compose.yml --file docker-compose.prod.yml --ecs-params ecs-params.yml --project-name staging-testnet service up --cluster-config alunir
+ecs-cli compose --file docker-compose.yml --file docker-compose.prod.yml --ecs-params ecs-params.yml --project-name production service up --cluster-config alunir
+# ecs-cli compose --file docker-compose.yml --file docker-compose.test.yml --ecs-params ecs-params.yml --project-name staging-test service up --cluster-config alunir
