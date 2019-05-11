@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+  app:
+    env_file:
+      - alunir/main/resources/private.env
+    volumes:
+     - .:/home
+
+  test:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir-build
+    env_file:
+      - alunir/main/resources/common.env
+    volumes:
+      - ./:/home
+    working_dir: /home
+    entrypoint: pytest -v
+
+  sqlite:
+    image: instructure/dynamo-local-admin
+    stdin_open: true
+    tty: true
+    ports:
+     - 8888:8000
+
+  influxdb:
+    image: influxdb:latest
+    ports:
+      - 8001:8001

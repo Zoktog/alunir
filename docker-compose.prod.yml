@@ -1,0 +1,9 @@
+version: '3'
+services:
+  app:
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: alunir
+        awslogs-region: ap-northeast-1
+        awslogs-stream-prefix: alunir

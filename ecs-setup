@@ -1,0 +1,11 @@
+#!/bin/bash
+# MEMO: Right one will override the left one
+export $(grep -h AWS_ ./alunir/main/resources/*.env | xargs)
+# MEMO: if you use bazel test with env. variables, set the following line.
+# printenv | grep AWS_
+echo "Successfully set environment variables."
+
+ecs-cli configure --cluster alunir --config-name alunir --default-launch-type FARGATE --region $AWS_DEFAULT_REGION
+ecs-cli configure profile --access-key $AWS_ACCESS_KEY_ID --secret-key $AWS_SECRET_ACCESS_KEY --profile-name alunir
+
+ecs-cli compose --file docker-compose.yml --file docker-compose.prod.yml --ecs-params ecs-params.yml --project-name staging-testnet service up --cluster-config alunir

@@ -1,0 +1,58 @@
+version: 1
+task_definition:
+  ecs_network_mode: awsvpc
+  task_execution_role: AmazonECSRole
+  task_size:
+    cpu_limit: 256
+    mem_limit: 512
+  services:
+    app:
+      essential: true
+      secrets:
+        - value_from: /laurel/coincheck/COINCHECK_KEY
+          name: COINCHECK_KEY
+        - value_from: /laurel/coincheck/COINCHECK_SECRET_KEY
+          name: COINCHECK_SECRET_KEY
+        - value_from: /laurel/coinbase/COINBASE_KEY
+          name: COINBASE_KEY
+        - value_from: /laurel/coinbase/COINBASE_SECRET_KEY
+          name: COINBASE_SECRET_KEY
+        - value_from: /laurel/bitfinex/BITFINEX_KEY_ID
+          name: BITFINEX_KEY_ID
+        - value_from: /laurel/bitfinex/BITFINEX_KEY
+          name: BITFINEX_KEY
+        - value_from: /laurel/bitfinex/BITFINEX_SECRET_KEY
+          name: BITFINEX_SECRET_KEY
+        - value_from: /laurel/kucoin/KUCOIN_KEY
+          name: KUCOIN_KEY
+        - value_from: /laurel/kucoin/KUCOIN_SECRET_KEY
+          name: KUCOIN_SECRET_KEY
+        - value_from: /laurel/bitflyer/BITFLYER_KEY
+          name: BITFLYER_KEY
+        - value_from: /laurel/bitflyer/BITFLYER_SECRET_KEY
+          name: BITFLYER_SECRET_KEY
+        - value_from: /laurel/deribit/DERIBIT_KEY
+          name: DERIBIT_KEY
+        - value_from: /laurel/deribit/DERIBIT_SECRET_KEY
+          name: DERIBIT_SECRET_KEY
+        - value_from: /laurel/liquid/LIQUID_KEY
+          name: LIQUID_KEY
+        - value_from: /laurel/liquid/LIQUID_SECRET_KEY
+          name: LIQUID_SECRET_KEY
+        - value_from: /laurel/forge/FORGE_KEY
+          name: FORGE_KEY
+        - value_from: /laurel/bitmex/BITMEX_KEY
+          name: BITMEX_KEY
+        - value_from: /laurel/bitmex/BITMEX_SECRET_KEY
+          name: BITMEX_SECRET_KEY
+        - value_from: /laurel/bitmex/TEST_BITMEX_KEY
+          name: TEST_BITMEX_KEY
+        - value_from: /laurel/bitmex/TEST_BITMEX_SECRET_KEY
+          name: TEST_BITMEX_SECRET_KEY
+
+run_params:
+  network_configuration:
+    awsvpc_configuration:
+      subnets:
+        - subnet-0a54475c267a33b63
+      assign_public_ip: ENABLED
