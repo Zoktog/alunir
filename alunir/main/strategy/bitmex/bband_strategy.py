@@ -8,10 +8,6 @@ multi = 2
 
 
 class BbandStrategy(StrategyBase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        pass
-
     def use(self, *args):
         pass
 

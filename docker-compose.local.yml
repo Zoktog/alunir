@@ -5,7 +5,7 @@ services:
     env_file:
       - alunir/main/resources/private.env
     volumes:
-     - .:/home
+     - ./:/home
 
   test:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir-build

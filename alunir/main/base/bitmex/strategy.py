@@ -14,6 +14,10 @@ class Strategy:
 
     def __init__(self, yourlogic):
 
+        # ログ設定
+        self.logger, self.test_handler = SystemLogger(yourlogic.__name__).get_logger()
+        self.logger.info("Initializing Strategy...")
+
         # トレーディングロジック設定
         self.yourlogic = yourlogic
 
@@ -64,8 +68,7 @@ class Strategy:
         # 取引所接続
         self.exchange = Exchange(self.settings, self.testnet, apiKey=self.settings.apiKey, secret=self.settings.secret)
 
-        # ログ設定
-        self.logger, self.test_handler = SystemLogger(yourlogic.__name__).get_logger()
+        self.logger.info("Completed to initialize Strategy.")
 
     def create_order(self, side, qty, limit, stop, trailing_offset, symbol):
         type = 'market'
