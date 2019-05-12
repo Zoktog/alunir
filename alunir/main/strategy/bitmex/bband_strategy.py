@@ -32,13 +32,13 @@ class BbandStrategy(StrategyBase):
 
         # 注文（ポジションがある場合ドテン）
         if last(buyEntry):
-          strategy.entry('L', 'buy', qty=qty_lot, limit=ticker.bid)
+            strategy.entry('L', 'buy', qty_lot, limit=ticker.bid)
         else:
-          strategy.cancel('L')
+            strategy.cancel('L')
         if last(sellEntry):
-          strategy.entry('S', 'sell', qty=qty_lot, limit=ticker.ask)
+            strategy.entry('S', 'sell', qty_lot, limit=ticker.ask)
         else:
-          strategy.cancel('S')
+            strategy.cancel('S')
 
 
 if __name__ == "__main__":

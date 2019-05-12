@@ -13,8 +13,8 @@ secret = ''
 
 # テストネット利用
 #use_testnet = True
-testnet_apiKey = ''
-testnet_secret = ''
+# testnet_apiKey = ''
+# testnet_secret = ''
 
 
 # ロギング設定
