@@ -186,9 +186,6 @@ class Strategy:
         # 注文
         self.order(myid, side, qty, limit, stop, symbol)
 
-    def edit_order(self, id, symbol, type, side, qty, price, params):
-        return self.exchange.edit_order(id, symbol, type, side, qty, price, params)
-
     def cancel(self, myid):
         return self.exchange.cancel_order(myid)
 
