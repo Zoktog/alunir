@@ -25,8 +25,12 @@ class Strategy:
         self.settings = Dotdict()
         self.settings.exchange = self.cfg.get_env("EXCHANGE", default='bitmex')
         self.settings.symbol = self.cfg.get_env("SYMBOL", default='BTC/USD')
-        self.settings.apiKey = self.cfg.get_env("BITMEX_KEY")
-        self.settings.secret = self.cfg.get_env("BITMEX_SECRET_KEY")
+        if self.cfg.env.is_real():
+            self.settings.apiKey = self.cfg.get_env("BITMEX_KEY")
+            self.settings.secret = self.cfg.get_env("BITMEX_SECRET_KEY")
+        else:
+            self.settings.apiKey = self.cfg.get_env("TEST_BITMEX_KEY")
+            self.settings.secret = self.cfg.get_env("TEST_BITMEX_SECRET_KEY")
         self.settings.close_position_at_start_stop = False
 
         # 動作タイミング
@@ -36,12 +40,6 @@ class Strategy:
         self.settings.timeframe = self.cfg.get_env("TIMEFRAME", default='1m')
         self.settings.partial = False
         self.hoge = None
-
-        # テストネット設定
-        self.testnet = Dotdict()
-        self.testnet.use = self.cfg.get_env("BITMEX_TEST_MODE", default=True)
-        self.testnet.apiKey = self.cfg.get_env("TEST_BITMEX_KEY")
-        self.testnet.secret = self.cfg.get_env("TEST_BITMEX_SECRET_KEY")
 
         # リスク設定
         self.risk = Dotdict()
@@ -66,7 +64,7 @@ class Strategy:
         self.ohlcv_updated = False
 
         # 取引所接続
-        self.exchange = Exchange(self.settings, self.testnet, apiKey=self.settings.apiKey, secret=self.settings.secret)
+        self.exchange = Exchange(self.settings, apiKey=self.settings.apiKey, secret=self.settings.secret)
 
         self.logger.info("Completed to initialize Strategy.")
 
@@ -213,8 +211,6 @@ class Strategy:
                     self.ohlcv_updated = True
 
     def setup(self):
-        validate(self, "self.testnet.apiKey")
-        validate(self, "self.testnet.secret")
         validate(self, "self.settings.apiKey")
         validate(self, "self.settings.secret")
 

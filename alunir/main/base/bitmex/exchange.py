@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from tuned_bitmex_websocket.tuned_bitmex_websocket import BitMEXWebsocket
 from alunir.main.base.common.order import OrderManager
 from xross_common.Dotdict import Dotdict
+from xross_common.SystemEnv import SystemEnv
 from xross_common.SystemLogger import SystemLogger
 
 RESAMPLE_INFO = {
@@ -49,11 +50,11 @@ def excahge_error(func):
 
 
 class Exchange:
+    env = SystemEnv.create()
     logger, test_handler = SystemLogger(__name__).get_logger()
 
-    def __init__(self, settings, testnet, apiKey='', secret=''):
+    def __init__(self, settings, apiKey='', secret=''):
         self.settings = settings
-        self.testnet = testnet
 
         self.apiKey = apiKey
         self.secret = secret
@@ -75,19 +76,15 @@ class Exchange:
         self.running = True
 
         # 取引所セットアップ
-        if self.testnet.use:
-            self.exchange = getattr(ccxt, self.settings.exchange)({
-                'apiKey': self.testnet.apiKey,
-                'secret': self.testnet.secret,
-                })
+        self.exchange = getattr(ccxt, self.settings.exchange)({
+            'apiKey': self.settings.apiKey,
+            'secret': self.settings.secret,
+        })
+        if self.env.is_real():
+            self.logger.info('Start Exchange')
+        else:
             self.exchange.urls['api'] = self.exchange.urls['test']
             self.logger.info('Start Test Exchange')
-        else:
-            self.exchange = getattr(ccxt, self.settings.exchange)({
-                'apiKey': self.settings.apiKey,
-                'secret': self.settings.secret,
-                })
-            self.logger.info('Start Exchange')
         self.exchange.load_markets()
 
         # マーケット一覧表示
@@ -265,16 +262,16 @@ class Exchange:
         if need_reconnect:
             market = self.exchange.market(self.settings.symbol)
             # ストリーミング設定
-            if self.testnet.use:
+            if self.env.is_real():
                 self.ws = BitMEXWebsocket(
-                    endpoint='wss://testnet.bitmex.com/realtime',
+                    endpoint='wss://www.bitmex.com',
                     symbol=market['id'],
-                    api_key=self.testnet.apiKey,
-                    api_secret=self.testnet.secret
+                    api_key=self.settings.apiKey,
+                    api_secret=self.settings.secret
                 )
             else:
                 self.ws = BitMEXWebsocket(
-                    endpoint='wss://www.bitmex.com',
+                    endpoint='wss://testnet.bitmex.com/realtime',
                     symbol=market['id'],
                     api_key=self.settings.apiKey,
                     api_secret=self.settings.secret
