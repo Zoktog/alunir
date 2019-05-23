@@ -31,7 +31,7 @@ class Exchange:
 
     def safe_api_call(self, func):
         @wraps(func)
-        def wrapper(*args, **kargs) :
+        def wrapper(*args, **kargs):
             retry = 3
             while retry > 0:
                 retry = retry - 1
@@ -161,7 +161,7 @@ class Exchange:
 
     def __restapi_create_order(self, myid, side, qty, limit, stop, time_in_force, minute_to_expire, symbol):
         # raise ccxt.ExchangeNotAvailable('sendchildorder {"status":-208,"error_message":"Order is not accepted"}')
-        qty = round(qty,8) # 有効桁数8桁
+        qty = round(qty, 8)  # 有効桁数8桁
         order_type = 'market'
         params = {}
         if limit is not None:
@@ -198,7 +198,7 @@ class Exchange:
             self.logger.info("POSITION: qty {currentQty} cost {avgCostPrice:.0f} pnl {unrealisedPnl}".format(**position))
         return position
 
-    def fetch_position(self, symbol, _async = True):
+    def fetch_position(self, symbol, _async=True):
         """建玉一覧取得"""
         if _async:
             return self.executor.submit(self.safe_fetch_position, symbol)
@@ -327,9 +327,9 @@ class Exchange:
             if len(my_orders):
                 for e in executions:
                     o = my_orders.get(e['buy_child_order_acceptance_id'], None)
-                    self.order_exec(o,e)
+                    self.order_exec(o, e)
                     o = my_orders.get(e['sell_child_order_acceptance_id'], None)
-                    self.order_exec(o,e)
+                    self.order_exec(o, e)
 
     def check_order_open_and_cancel(self, boards):
         if len(boards):
