@@ -10,7 +10,7 @@ class TestOrderManager(XrossTestBase):
         self.om.printall()
 
     def tearDown(self):
-        self.om = None
+        self.om.clear_for_test()
 
     def test_OrderNotFoundException(self):
         try:

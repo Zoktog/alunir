@@ -40,6 +40,10 @@ class OrderManager(metaclass=Singleton):
     orders = OrderedDict()
     positions = deque()
 
+    def clear_for_test(self):
+        self.number_of_orders = 0
+        self.orders.clear()
+
     def add_order(self, new_order):
         with self.lock:
             self.number_of_orders += 1
