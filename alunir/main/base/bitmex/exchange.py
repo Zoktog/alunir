@@ -8,6 +8,9 @@ from alunir.main.base.common.order import OrderManager
 from xross_common.Dotdict import Dotdict
 from xross_common.SystemEnv import SystemEnv
 from xross_common.SystemLogger import SystemLogger
+from oslash import Right, Left
+
+DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 
 RESAMPLE_INFO = {
     '1m': {'binSize': '1m', 'resample': False, 'count': 100, 'delta': timedelta(minutes=1)},
@@ -69,8 +72,12 @@ class Exchange:
         self.running = False
 
         # WebSocket
-        self.settings.use_websocket = False
+        # self.settings.use_websocket = False
         self.ws = None
+
+        # TODO: safe_api_caller
+        self.trades = None
+        self.__last_timestamp_recent_trades = datetime(year=1970, month=1, day=1)
 
     def start(self):
         self.running = True
@@ -102,25 +109,53 @@ class Exchange:
 
         self.om = OrderManager()
 
+    def __safe_api_recent_trades(self, symbol, **params):
+        if datetime.now() - self.__last_timestamp_recent_trades > timedelta(seconds=self.settings.interval):
+            self.trades = self.exchange.fetch_trades(symbol, **params)
+            self.__last_timestamp_recent_trades = datetime.strptime(self.trades[0]['info']['timestamp'], DATETIME_FORMAT)
+        return self.trades
+
+    def __safe_api_recent_trades_ws(self, **params):
+        if datetime.now() - self.__last_timestamp_recent_trades > timedelta(seconds=self.settings.interval):
+            self.trades = self.ws.recent_trades(**params)
+            self.__last_timestamp_recent_trades = datetime.strptime(self.trades[0]['timestamp'], DATETIME_FORMAT)
+        return self.trades
+
+    def fetch_my_executions(self, symbol, orders, **params):
+        trades = self.__safe_api_recent_trades(symbol, **params)
+        order_ids = [v['id'] for myid, v in orders.items()]
+        trade_ids = [trade['id'] for trade in trades]
+        return [order_id for order_id in order_ids if order_id in trade_ids]
+
+    def fetch_my_executions_ws(self, orders, **params):
+        trades = self.__safe_api_recent_trades_ws(**params)
+        order_ids = {{v['id']: myid} for myid, v in orders.items()}
+        trade_ids = {trade['id'] for trade in trades}
+        return [order_id for order_id in order_ids if order_id in trade_ids]
+
     def fetch_ticker(self, symbol=None, timeframe=None):
         symbol = symbol or self.settings.symbol
         timeframe = timeframe or self.settings.timeframe
-        book = self.exchange.fetch_order_book(symbol, limit=1)
-        trade = self.exchange.fetch_trades(symbol, limit=1, params={"reverse": True})
+        book = self.exchange.fetch_order_book(symbol, limit=10)
+        trade = self.__safe_api_recent_trades(symbol, limit=1, params={"reverse": True})
         ticker = Dotdict()
-        ticker.bid = book['bids'][0][0]
-        ticker.ask = book['asks'][0][0]
+        ticker.bid, ticker.bidsize = book['bids'][0]
+        ticker.ask, ticker.asksize = book['asks'][0]
+        ticker.bids = book['bids']
+        ticker.asks = book['asks']
         ticker.last = trade[0]['price']
         ticker.datetime = pd.to_datetime(trade[0]['datetime'])
         self.logger.info("TICK: bid {bid} ask {ask} last {last}".format(**ticker))
-        return ticker
+        self.logger.info("TRD: price {price} size {size} side {side} tick {tickDirection} ".format(**(trade[0]['info'])))
+        return ticker, trade
 
     def fetch_ticker_ws(self):
-        trade = self.ws.recent_trades()[-1]
+        trade = self.__safe_api_recent_trades_ws()[-1]
         ticker = Dotdict(self.ws.get_ticker())
         ticker.datetime = pd.to_datetime(trade['timestamp'])
         self.logger.info("TICK: bid {bid} ask {ask} last {last}".format(**ticker))
-        return ticker
+        self.logger.info("TRD: price {price} size {size} side {side} tick {tickDirection} ".format(**(trade['info'])))
+        return ticker, trade
 
     def fetch_ohlcv(self, symbol=None, timeframe=None):
         """過去100件のOHLCVを取得"""
@@ -206,13 +241,76 @@ class Exchange:
                 order = Dotdict(self.exchange.parse_order(o))
                 order.info = Dotdict(order.info)
                 return order
-        return Dotdict({'status':'closed', 'id':order_id})
+        return Dotdict({'status': 'closed', 'id': order_id})
 
-    def create_order(self, symbol, type, side, qty, price, params):
-        return self.exchange.create_order(symbol, type, side, qty, price=price, params=params)
+    def create_order(self, myid, symbol, type, side, qty, price, params):
+        self.logger.info(
+            "Requesting to create a new order. symbol:%s, type:%s, side:%s, qty:%s, price:%s"
+            % (symbol, type, side, qty, price)
+        )
+        try:
+            result = Right(self.exchange.create_order(symbol, type, side, qty, price=price, params=params))
 
-    def edit_order(self, id, symbol, type, side, qty, price, params):
-        return self.exchange.edit_order(id, symbol, type, side, amount=qty, price=price, params=params)
+            order = Dotdict()
+            order.myid = myid
+            order.accepted_at = datetime.utcnow().strftime(DATETIME_FORMAT)
+            order.id = result.value['info']['orderID']
+            order.status = 'accepted'
+            order.symbol = symbol
+            order.type = type.lower()
+            order.side = side
+            order.price = price if price is not None else 0
+            order.average_price = 0
+            order.cost = 0
+            order.amount = qty
+            order.filled = 0
+            order.remaining = 0
+            order.fee = 0
+            self.om.add_order(order)
+            # self.logger.info("UPDATED ORDER: %s" % order)
+            # self.logger.info("ACTIVE ORDERS: %s" % self.om.get_open_orders())
+        except Exception as e:
+            result = Left(str(e))
+        return result.value
+
+    def edit_order(self, myid, symbol, type, side, qty, price, params):
+        self.logger.info(
+            "Requesting to amend the order. myid:%s, symbol:%s, type:%s, side:%s, qty:%s, price:%s"
+            % (myid, symbol, type, side, qty, price)
+        )
+
+        try:
+            active_order = self.om.get_open_order(myid)
+            if active_order is None:
+                self.logger.warning("No ActiveOrder exists.")
+                return
+            result = Right(self.exchange.edit_order(
+                active_order.id, symbol, type, side, amount=qty, price=price, params=params
+            ))
+
+            active_order.myid = myid
+            active_order.accepted_at = datetime.utcnow().strftime(DATETIME_FORMAT)
+            active_order.id = result.value['info']['orderID']
+            active_order.status = 'accepted'
+            # order.symbol = symbol
+            active_order.type = type.lower()
+            # order.side = side
+            active_order.price = price if price is not None else 0
+            active_order.average_price = 0
+            active_order.cost = 0
+            active_order.amount = qty
+            active_order.filled = 0  # FIXME
+            active_order.remaining = 0  # FIXME
+            active_order.fee = 0
+            self.om.add_order(active_order)
+        except ccxt.BadRequest as e:
+            self.logger.warning("Returned BadRequest: %s" % str(e))
+            result = Left("Returned BadRequest: %s" % str(e))
+            self.om.cancel_order(myid)
+        except Exception as e:
+            self.logger.warning("Returned Exception: %s" % str(e))
+            result = Left(str(e))
+        return result.value
 
     @excahge_error
     def close_position(self, symbol=None):
@@ -228,12 +326,16 @@ class Exchange:
         open_orders = self.om.get_open_orders()
         if myid in open_orders:
             try:
-                order_id = open_orders[myid].id
-                res = self.exchange.cancel_order(order_id)
+                details = open_orders[myid]
+                self.logger.info(
+                    "Requesting to cancel the order. myid:%s, id:%s, symbol:%s, type:%s, side:%s, qty:%s, price:%s"
+                    % (myid, details.id, details.symbol, details.type, details.side, details.qty, details.price)
+                )
+                res = self.exchange.cancel_order(details.id)
                 self.logger.info("CANCEL: {orderID} {side} {orderQty} {price}".format(**res['info']))
             except ccxt.OrderNotFound as e:
                 self.logger.warning(type(e).__name__ + ": {0}".format(e))
-            except ccxt.NotFound as e:
+            except Exception as e:
                 self.logger.warning(type(e).__name__ + ": {0}".format(e))
             # del open_orders[myid]
             self.om.cancel_order(myid)

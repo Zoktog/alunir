@@ -4,9 +4,15 @@ from time import sleep
 import ccxt
 from xross_common.SystemLogger import SystemLogger
 from xross_common.SystemUtil import SystemUtil
+from xross_common.CustomErrors import BaseError
 
 from alunir.main.base.bitmex.exchange import Exchange
 from alunir.main.base.common.utils import Dotdict, validate
+
+
+class OrderNotFoundException(BaseError):
+    """"Raised when the order isn't found"""
+    pass
 
 
 class Strategy:
@@ -25,6 +31,8 @@ class Strategy:
         self.settings = Dotdict()
         self.settings.exchange = self.cfg.get_env("EXCHANGE", default='bitmex')
         self.settings.symbol = self.cfg.get_env("SYMBOL", default='BTC/USD')
+        self.settings.use_websocket = self.cfg.get_env("USE_WEB_SOCKET", type=bool, default=True)
+        self.logger.info("USE_WEB_SOCKET: %s" % self.settings.use_websocket)
         if self.cfg.env.is_real():
             self.settings.apiKey = self.cfg.get_env("BITMEX_KEY")
             self.settings.secret = self.cfg.get_env("BITMEX_SECRET_KEY")
@@ -63,49 +71,54 @@ class Strategy:
         self.ohlcv = None
         self.ohlcv_updated = False
 
+        # 約定情報
+        self.executions = Dotdict()
+
         # 取引所接続
         self.exchange = Exchange(self.settings, apiKey=self.settings.apiKey, secret=self.settings.secret)
 
         self.logger.info("Completed to initialize Strategy.")
 
-    def create_order(self, side, qty, limit, stop, trailing_offset, symbol):
+    def create_order(self, myid, side, qty, limit, stop, trailing_offset, symbol):
         type = 'market'
         params = {}
         if stop is not None and limit is not None:
             type = 'stopLimit'
             params['stopPx'] = stop
             params['execInst'] = 'LastPrice'
-            params['price'] = limit
+            # params['price'] = limit
         elif stop is not None:
             type = 'stop'
             params['stopPx'] = stop
             params['execInst'] = 'LastPrice'
         elif limit is not None:
             type = 'limit'
-            params['price'] = limit
+            # params['price'] = limit
         if trailing_offset is not None:
             params['pegPriceType'] = 'TrailingStopPeg'
             params['pegOffsetValue'] = trailing_offset
-        res = self.exchange.create_order(symbol, type, side, qty, None, params)
+        symbol = symbol or self.settings.symbol
+        res = self.exchange.create_order(myid, symbol, type, side, qty, limit, params)
         self.logger.info("ORDER: {orderID} {side} {orderQty} {price}({stopPx})".format(**res['info']))
         return Dotdict(res)
 
-    def edit_order(self, id, side, qty, limit, stop, trailing_offset, symbol):
+    def edit_order(self, myid, side, qty, limit=None, stop=None, trailing_offset=None, symbol=None):
         type = 'market'
         params = {}
         if stop is not None and limit is not None:
             type = 'stopLimit'
             params['stopPx'] = stop
-            params['price'] = limit
+            # params['price'] = limit
         elif stop is not None:
             type = 'stop'
             params['stopPx'] = stop
         elif limit is not None:
             type = 'limit'
-            params['price'] = limit
+            # params['price'] = limit
         if trailing_offset is not None:
             params['pegOffsetValue'] = trailing_offset
-        res = self.exchange.edit_order(id, symbol, type, side, qty, None, params)
+        symbol = symbol or self.settings.symbol
+        res = self.exchange.edit_order(myid, symbol, type, side, qty, limit, params)
         self.logger.info("EDIT: {orderID} {side} {orderQty} {price}({stopPx})".format(**res['info']))
         return Dotdict(res)
 
@@ -143,8 +156,7 @@ class Strategy:
             symbol = symbol or self.settings.symbol
 
             if myid in self.orders:
-                order_id = self.orders[myid].id
-                order = self.exchange.fetch_order(order_id)
+                order = self.exchange.fetch_order(self.orders[myid].id)
 
                 # 未約定・部分約定の場合、注文を編集
                 if order.status == 'open':
@@ -153,24 +165,26 @@ class Strategy:
                     order_type = order_type + 'limit' if limit is not None else order_type
                     if (order_type != order.type) or (order.type == 'stoplimit' and order.info.triggered == 'StopOrderTriggered'):
                         # 注文キャンセルに失敗した場合、ポジション取得からやり直す
-                        self.exchange.cancel_order(order_id)
-                        order = self.create_order(side, qty, limit, stop, trailing_offset, symbol)
+                        self.exchange.cancel_order(myid)
+                        order = self.create_order(myid, side, qty, limit, stop, trailing_offset, symbol)
                     else:
                         # 指値・ストップ価格・数量に変更がある場合のみ編集を行う
                         if ((order.info.price is not None and order.info.price != limit) or
                             (order.info.stopPx is not None and order.info.stopPx != stop) or
                             (order.info.orderQty is not None and order.info.orderQty != qty)):
-                            order = self.edit_order(order_id, side, qty, limit, stop, trailing_offset, symbol)
+                            order = self.edit_order(myid, side, qty, limit, stop, trailing_offset, symbol)
 
                 # 約定済みの場合、新規注文
                 else:
-                    order = self.create_order(side, qty, limit, stop, trailing_offset, symbol)
+                    order = self.create_order(myid, side, qty, limit, stop, trailing_offset, symbol)
 
             # 注文がない場合、新規注文
             else:
-                order = self.create_order(side, qty, limit, stop, trailing_offset, symbol)
+                order = self.create_order(myid, side, qty, limit, stop, trailing_offset, symbol)
 
             self.orders[myid] = order
+
+            return order
 
     def entry(self, myid, side, qty, limit=None, stop=None, trailing_offset=None, symbol=None):
         """注文"""
@@ -184,7 +198,7 @@ class Strategy:
             qty = qty - self.position.currentQty
 
         # 注文
-        self.order(myid, side, qty, limit, stop, symbol)
+        return self.order(myid, side, qty, limit=limit, stop=stop, trailing_offset=trailing_offset, symbol=symbol)
 
     def cancel(self, myid):
         return self.exchange.cancel_order(myid)
@@ -214,6 +228,10 @@ class Strategy:
         self.exchange.start()
 
         self.yourlogic()
+        args = {
+            'strategy': self
+        }
+        self.yourlogic.use(self.yourlogic, **args)
 
     def add_arguments(self, parser):
         parser.add_argument('--apikey', type=str, default=self.settings.apiKey)
@@ -252,22 +270,28 @@ class Strategy:
                     self.exchange.reconnect_websocket()
 
                     # ティッカー取得
-                    self.ticker = self.exchange.fetch_ticker_ws()
+                    self.ticker, last_execution = self.exchange.fetch_ticker_ws()
 
                     # ポジション取得
                     self.position = self.exchange.fetch_position_ws()
 
                     # 資金情報取得
                     self.balance = self.exchange.fetch_balance_ws()
+
+                    # 約定情報
+                    self.executions = self.exchange.fetch_my_executions_ws(self.orders)
                 else:
                     # ティッカー取得
-                    self.ticker = self.exchange.fetch_ticker()
+                    self.ticker, last_execution = self.exchange.fetch_ticker()
 
                     # ポジション取得
                     self.position = self.exchange.fetch_position()
 
                     # 資金情報取得
                     self.balance = self.exchange.fetch_balance()
+
+                    # 約定情報
+                    self.executions = self.exchange.fetch_my_executions(self.settings.symbol, self.orders)
 
                 # 足取得（足確定後取得）
                 self.update_ohlcv(ticker_time=self.ticker.datetime)
@@ -279,7 +303,7 @@ class Strategy:
                     'ohlcv': self.ohlcv,
                     'position': self.position,
                     'balance': self.balance,
-                    'executions': None
+                    'execution': self.executions
                 }
                 self.yourlogic.bizlogic(self.yourlogic, **arg)
 
