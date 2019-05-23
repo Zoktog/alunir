@@ -3,7 +3,6 @@ import ccxt
 from time import sleep
 import pandas as pd
 from datetime import datetime, timedelta
-from tuned_bitmex_websocket.tuned_bitmex_websocket import BitMEXWebsocket
 from alunir.main.base.common.order import OrderManager
 from xross_common.Dotdict import Dotdict
 from xross_common.SystemEnv import SystemEnv
@@ -13,7 +12,7 @@ from oslash import Right, Left
 DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 
 RESAMPLE_INFO = {
-    '1m': {'binSize': '1m', 'resample': False, 'count': 100, 'delta': timedelta(minutes=1)},
+    '1m': {'binSize': '1m', 'resample': False, 'count': 200, 'delta': timedelta(minutes=1)},
     '3m': {'binSize': '1m', 'resample': True, 'count': 120, 'delta': timedelta(minutes=1)},
     '5m': {'binSize': '5m', 'resample': False, 'count': 100, 'delta': timedelta(minutes=5)},
     '15m': {'binSize': '5m', 'resample': True, 'count': 120, 'delta': timedelta(minutes=5)},
@@ -87,11 +86,10 @@ class Exchange:
             'apiKey': self.settings.apiKey,
             'secret': self.settings.secret,
         })
-        if self.env.is_real():
-            self.logger.info('Start Exchange')
-        else:
-            self.exchange.urls['api'] = self.exchange.urls['test']
-            self.logger.info('Start Test Exchange')
+        self.exchange.nonce = ccxt.Exchange.milliseconds
+
+        self.logger.info('Start Exchange')
+
         self.exchange.load_markets()
 
         # マーケット一覧表示
@@ -100,19 +98,20 @@ class Exchange:
 
         # マーケット情報表示
         market = self.exchange.market(self.settings.symbol)
+        # self.logger.debug(market)
         self.logger.info('{symbol}: base:{base}'.format(**market))
         self.logger.info('{symbol}: quote:{quote}'.format(**market))
-        self.logger.info('{symbol}: active:{active}'.format(**market))
+        # self.logger.info('{symbol}: active:{active}'.format(**market))
         self.logger.info('{symbol}: taker:{taker}'.format(**market))
         self.logger.info('{symbol}: maker:{maker}'.format(**market))
-        self.logger.info('{symbol}: type:{type}'.format(**market))
+        # self.logger.info('{symbol}: type:{type}'.format(**market))
 
         self.om = OrderManager()
 
     def __safe_api_recent_trades(self, symbol, **params):
         if datetime.now() - self.__last_timestamp_recent_trades > timedelta(seconds=self.settings.interval):
             self.trades = self.exchange.fetch_trades(symbol, **params)
-            self.__last_timestamp_recent_trades = datetime.strptime(self.trades[0]['info']['timestamp'], DATETIME_FORMAT)
+            self.__last_timestamp_recent_trades = datetime.fromtimestamp(int(self.trades[0]['id']))
         return self.trades
 
     def __safe_api_recent_trades_ws(self, **params):
@@ -146,7 +145,7 @@ class Exchange:
         ticker.last = trade[0]['price']
         ticker.datetime = pd.to_datetime(trade[0]['datetime'])
         self.logger.info("TICK: bid {bid} ask {ask} last {last}".format(**ticker))
-        self.logger.info("TRD: price {price} size {size} side {side} tick {tickDirection} ".format(**(trade[0]['info'])))
+        self.logger.info("TRD: price {rate} size {amount} side {order_type} ".format(**(trade[0]['info'])))
         return ticker, trade
 
     def fetch_ticker_ws(self):
@@ -164,44 +163,32 @@ class Exchange:
         partial = 'true' if self.settings.partial else 'false'
         rsinf = RESAMPLE_INFO[timeframe]
         market = self.exchange.market(symbol)
-        req = {
-            'symbol': market['id'],
-            'binSize': rsinf['binSize'],
-            'count': rsinf['count'],
-            'partial': partial,     # True == include yet-incomplete current bins
-            'reverse': 'false',
-            'startTime': datetime.utcnow() - (rsinf['delta'] * rsinf['count']),
-        }
-        res = self.exchange.publicGetTradeBucketed(req)
-        df = pd.DataFrame(res)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        df.set_index('timestamp', inplace=True)
-        if rsinf['resample']:
-            rule = timeframe
-            rule = rule.replace('m','T')
-            rule = rule.replace('d','D')
-            df = df.resample(rule=rule, closed='right').agg({'open':'first','high':'max','low':'min','close':'last','volume':'sum'})
+        # req = {
+        #     'symbol': market['id'],
+        #     'binSize': rsinf['binSize'],
+        #     'count': rsinf['count'],
+        #     'partial': partial,     # True == include yet-incomplete current bins
+        #     'reverse': 'false',
+        #     'startTime': datetime.utcnow() - (rsinf['delta'] * rsinf['count']),
+        # }
+        res = self.exchange.fetchOHLCV(symbol=symbol, timeframe=timeframe, since=None, limit=rsinf['count'], params={'reverse': True})
+        res2 = res.copy()
+        for i in range(len(res)):
+            res2[i][0] = datetime.fromtimestamp(int(res[i][0])/1000.0)
+        del res
+        keys = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+        dict_res = [dict(zip(keys, r)) for r in res2]
+        df = pd.DataFrame(dict_res).set_index('timestamp')
         self.logger.info("OHLCV: {open} {high} {low} {close} {volume}".format(**df.iloc[-1]))
         return df
 
     def fetch_position(self, symbol=None):
         """現在のポジションを取得"""
-        symbol = symbol or self.settings.symbol
-        res = self.exchange.privateGetPosition()
-        pos = [x for x in res if x['symbol'] == self.exchange.market(symbol)['id']]
-        if len(pos):
-            pos = Dotdict(pos[0])
-            pos.timestamp = pd.to_datetime(pos.timestamp)
-        else:
-            pos = Dotdict()
-            pos.currentQty = 0
-            pos.avgCostPrice = 0
-            pos.unrealisedPnl = 0
-            pos.unrealisedPnlPcnt = 0
-            pos.realisedPnl = 0
-        pos.unrealisedPnlPcnt100 = pos.unrealisedPnlPcnt * 100
-        self.logger.info("POSITION: qty {currentQty} cost {avgCostPrice} pnl {unrealisedPnl}({unrealisedPnlPcnt100:.2f}%) {realisedPnl}".format(**pos))
-        return pos
+        # symbol = symbol or self.settings.symbol
+        # res = self.exchange.fetchMyTrades(symbol=symbol)
+        # self.logger.info("POSITION: qty {currentQty} cost {avgCostPrice} pnl {unrealisedPnl}({unrealisedPnlPcnt100:.2f}%) {realisedPnl}".format(**pos))
+        # TODO: please implement someday
+        return None
 
     def fetch_position_ws(self):
         pos = Dotdict(self.ws.position())
@@ -237,7 +224,7 @@ class Exchange:
     def fetch_order_ws(self, order_id):
         orders = self.ws.all_orders()
         for o in orders:
-            if o['orderID'] == order_id:
+            if o['id'] == order_id:
                 order = Dotdict(self.exchange.parse_order(o))
                 order.info = Dotdict(order.info)
                 return order
@@ -254,7 +241,7 @@ class Exchange:
             order = Dotdict()
             order.myid = myid
             order.accepted_at = datetime.utcnow().strftime(DATETIME_FORMAT)
-            order.id = result.value['info']['orderID']
+            order.id = result.value['info']['id']
             order.status = 'accepted'
             order.symbol = symbol
             order.type = type.lower()
@@ -267,9 +254,11 @@ class Exchange:
             order.remaining = 0
             order.fee = 0
             self.om.add_order(order)
-            # self.logger.info("UPDATED ORDER: %s" % order)
-            # self.logger.info("ACTIVE ORDERS: %s" % self.om.get_open_orders())
+        except ccxt.BadRequest as e:
+            self.logger.warning("Returned BadRequest: %s" % str(e))
+            result = Left("Returned BadRequest: %s" % str(e))
         except Exception as e:
+            self.logger.warning("Returned Exception: %s" % str(e))
             result = Left(str(e))
         return result.value
 
@@ -290,7 +279,7 @@ class Exchange:
 
             active_order.myid = myid
             active_order.accepted_at = datetime.utcnow().strftime(DATETIME_FORMAT)
-            active_order.id = result.value['info']['orderID']
+            active_order.id = result.value['info']['id']
             active_order.status = 'accepted'
             # order.symbol = symbol
             active_order.type = type.lower()
@@ -319,7 +308,7 @@ class Exchange:
         market = self.exchange.market(symbol)
         req = {'symbol': market['id']}
         res = self.exchange.privatePostOrderClosePosition(req)
-        self.logger.info("CLOSE: {orderID} {side} {orderQty} {price}".format(**res))
+        self.logger.info("CLOSE: {id} {order_type} {amount} {rate}".format(**res))
 
     def cancel_order(self, myid):
         """注文をキャンセル"""
@@ -332,7 +321,7 @@ class Exchange:
                     % (myid, details.id, details.symbol, details.type, details.side, details.qty, details.price)
                 )
                 res = self.exchange.cancel_order(details.id)
-                self.logger.info("CANCEL: {orderID} {side} {orderQty} {price}".format(**res['info']))
+                self.logger.info("CANCEL: {id} {order_type} {amount} {rate}".format(**res['info']))
             except ccxt.OrderNotFound as e:
                 self.logger.warning(type(e).__name__ + ": {0}".format(e))
             except Exception as e:
@@ -344,11 +333,9 @@ class Exchange:
     def cancel_order_all(self, symbol=None):
         """現在の注文をキャンセル"""
         symbol = symbol or self.settings.symbol
-        market = self.exchange.market(symbol)
-        req = {'symbol': market['id']}
-        res = self.exchange.privateDeleteOrderAll(req)
+        res = self.exchange.fetch_open_orders(symbol=symbol)
         for r in res:
-            self.logger.info("CANCEL: {orderID} {side} {orderQty} {price}".format(**r))
+            self.logger.info("CANCEL: {id} {order_type} {amount} {rate}".format(**r))
 
     def reconnect_websocket(self):
         # 再接続が必要がチェック
@@ -364,19 +351,19 @@ class Exchange:
         if need_reconnect:
             market = self.exchange.market(self.settings.symbol)
             # ストリーミング設定
-            if self.env.is_real():
-                self.ws = BitMEXWebsocket(
-                    endpoint='wss://www.bitmex.com',
-                    symbol=market['id'],
-                    api_key=self.settings.apiKey,
-                    api_secret=self.settings.secret
-                )
-            else:
-                self.ws = BitMEXWebsocket(
-                    endpoint='wss://testnet.bitmex.com/realtime',
-                    symbol=market['id'],
-                    api_key=self.settings.apiKey,
-                    api_secret=self.settings.secret
-                )
+            # if self.env.is_real():
+            #     self.ws = BitMEXWebsocket(
+            #         endpoint='wss://www.bitmex.com',
+            #         symbol=market['id'],
+            #         api_key=self.settings.apiKey,
+            #         api_secret=self.settings.secret
+            #     )
+            # else:
+            #     self.ws = BitMEXWebsocket(
+            #         endpoint='wss://testnet.bitmex.com/realtime',
+            #         symbol=market['id'],
+            #         api_key=self.settings.apiKey,
+            #         api_secret=self.settings.secret
+            #     )
             # ネットワーク負荷の高いトピックの配信を停止
             self.ws.unsubscribe(['orderBookL2'])

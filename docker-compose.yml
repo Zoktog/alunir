@@ -5,6 +5,7 @@ services:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/alunir/app
     env_file:
       - alunir/main/resources/common.env
-      - alunir/main/resources/bband_strategy.env
+      - alunir/main/resources/container.env
+      - alunir/main/resources/${STRATEGY_NAME}.env
     working_dir: /home
-    entrypoint: python alunir/main/strategy/bitmex/bband_strategy.py
+    entrypoint: python alunir/main/strategy/${EXCHANGE}/${STRATEGY_NAME}.py

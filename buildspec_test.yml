@@ -43,5 +43,5 @@ phases:
   build:
     commands:
       - echo Test started on `date`
-      - docker-compose --file docker-compose.yml --file docker-compose.local.yml up --exit-code-from test || exit 1
+      - ./start test || exit 1
       - echo Test completed on `date`

@@ -4,13 +4,18 @@ from collections import OrderedDict, deque
 from alunir.main.base.common.utils import Dotdict
 
 from xross_common.SystemLogger import SystemLogger
+from xross_common.DesignPattern import Singleton
+
+
+class OrderDuplicateFoundException(BaseException):
+    pass
 
 
 class OrderNotFoundException(BaseException):
     pass
 
 
-class OrderManager:
+class OrderManager(metaclass=Singleton):
     logger, test_handler = SystemLogger(__name__).get_logger()
 
     INVALID_ORDER = Dotdict({
@@ -34,6 +39,10 @@ class OrderManager:
     number_of_orders = 0
     orders = OrderedDict()
     positions = deque()
+
+    def clear_for_test(self):
+        self.number_of_orders = 0
+        self.orders.clear()
 
     def add_order(self, new_order):
         with self.lock:
@@ -144,6 +153,16 @@ class OrderManager:
             return my_orders[-1]
         raise OrderNotFoundException("MyOrderID:%s is not found. MyOrders:%s" % (myid, my_orders))
 
+    def get_open_order(self, myid):
+        my_open_orders = self.get_open_orders()
+        my_order = [v for v in my_open_orders.values() if v['myid'] == myid]
+        if len(my_order) == 1:
+            return Dotdict(my_order[0])
+        elif len(my_order) == 0:
+            raise OrderNotFoundException("MyOrderID:%s is not open. MyOpenOrders:%s" % (myid, my_open_orders))
+        else:
+            raise OrderDuplicateFoundException("MyOrderID:%s is duplicated." % myid)
+
     def get_open_orders(self):
         return self.get_orders(status_filter=['open', 'accepted', 'cancel'])
 
@@ -154,6 +173,15 @@ class OrderManager:
             else:
                 my_orders = {k: v for k, v in self.orders.items() if (v['status'] in status_filter)}
         return my_orders
+
+    def is_active(self, myid):
+        try:
+            self.get_open_order(myid)
+        except OrderNotFoundException as e:
+            return False
+        except Exception as e:
+            return False
+        return True
 
     def update_order(self, o):
         self.get_order(o['myid']).update(o)

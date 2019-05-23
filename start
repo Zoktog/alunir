@@ -10,9 +10,11 @@ aws configure set region ${AWS_DEFAULT_REGION}
 `aws ecr get-login --no-include-email --region ap-northeast-1`
 
 if [ $1 = test ]; then
+    export STRATEGY_NAME=test
     docker-compose --file docker-compose.yml --file docker-compose.local.yml up test
 else
-    STRATEGY_NAME=$1
+    export STRATEGY_NAME=$1
+    export $(cat alunir/main/resources/${STRATEGY_NAME}.env | xargs)
     docker-compose --file docker-compose.yml --file docker-compose.local.yml pull app
     docker-compose --file docker-compose.yml --file docker-compose.local.yml up app
 fi

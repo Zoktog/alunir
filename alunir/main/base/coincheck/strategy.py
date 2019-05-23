@@ -6,7 +6,7 @@ from xross_common.SystemLogger import SystemLogger
 from xross_common.SystemUtil import SystemUtil
 from xross_common.CustomErrors import BaseError
 
-from alunir.main.base.bitmex.exchange import Exchange
+from alunir.main.base.coincheck.exchange import Exchange
 from alunir.main.base.common.utils import Dotdict, validate
 
 
@@ -29,30 +29,28 @@ class Strategy:
 
         # 取引所情報
         self.settings = Dotdict()
-        self.settings.exchange = self.cfg.get_env("EXCHANGE", default='bitmex')
-        self.settings.symbol = self.cfg.get_env("SYMBOL", default='BTC/USD')
+        self.settings.exchange = self.cfg.get_env("EXCHANGE", default='coincheck')
+        self.settings.symbol = self.cfg.get_env("SYMBOL", default='BTC/JPY')
+        self.settings.lot = int(self.cfg.get_env("LOT", default=1000))
         self.settings.use_websocket = self.cfg.get_env("USE_WEB_SOCKET", type=bool, default=True)
         self.logger.info("USE_WEB_SOCKET: %s" % self.settings.use_websocket)
-        if self.cfg.env.is_real():
-            self.settings.apiKey = self.cfg.get_env("BITMEX_KEY")
-            self.settings.secret = self.cfg.get_env("BITMEX_SECRET_KEY")
-        else:
-            self.settings.apiKey = self.cfg.get_env("TEST_BITMEX_KEY")
-            self.settings.secret = self.cfg.get_env("TEST_BITMEX_SECRET_KEY")
+
+        self.settings.apiKey = self.cfg.get_env("COINCHECK_KEY")
+        self.settings.secret = self.cfg.get_env("COINCHECK_SECRET_KEY")
+
         self.settings.close_position_at_start_stop = False
 
         # 動作タイミング
-        self.settings.interval = int(self.cfg.get_env("INTERVAL", default=60))
+        self.settings.interval = int(self.cfg.get_env("INTERVAL", default=86400))
 
         # ohlcv設定
         self.settings.timeframe = self.cfg.get_env("TIMEFRAME", default='1m')
         self.settings.partial = False
-        self.hoge = None
 
         # リスク設定
         self.risk = Dotdict()
-        self.risk.max_position_size = 1000
-        self.risk.max_drawdown = 5000
+        self.risk.max_position_size = 20000
+        self.risk.max_drawdown = 200000
 
         # ポジション情報
         self.position = Dotdict()
@@ -99,7 +97,7 @@ class Strategy:
             params['pegOffsetValue'] = trailing_offset
         symbol = symbol or self.settings.symbol
         res = self.exchange.create_order(myid, symbol, type, side, qty, limit, params)
-        self.logger.info("ORDER: {orderID} {side} {orderQty} {price}({stopPx})".format(**res['info']))
+        self.logger.info("ORDER: {id} {order_type} {amount} {rate}({stop_loss_rate})".format(**res['info']))
         return Dotdict(res)
 
     def edit_order(self, myid, side, qty, limit=None, stop=None, trailing_offset=None, symbol=None):
@@ -119,7 +117,7 @@ class Strategy:
             params['pegOffsetValue'] = trailing_offset
         symbol = symbol or self.settings.symbol
         res = self.exchange.edit_order(myid, symbol, type, side, qty, limit, params)
-        self.logger.info("EDIT: {orderID} {side} {orderQty} {price}({stopPx})".format(**res['info']))
+        self.logger.info("EDIT: {id} {order_type} {amount} {rate}({stop_loss_rate})".format(**res['info']))
         return Dotdict(res)
 
     def order(self, myid, side, qty, limit=None, stop=None, trailing_offset=None, symbol=None):
@@ -128,25 +126,25 @@ class Strategy:
         qty_total = qty
         qty_limit = self.risk.max_position_size
 
-        # 買いポジあり
-        if self.position.currentQty > 0:
-            # 買い増し
-            if side == 'buy':
-                # 現在のポジ数を加算
-                qty_total = qty_total + self.position.currentQty
-            else:
-                # 反対売買の場合、ドテンできるように上限を引き上げる
-                qty_limit = qty_limit + self.position.currentQty
-
-        # 売りポジあり
-        if self.position.currentQty < 0:
-            # 売りまし
-            if side == 'sell':
-                # 現在のポジ数を加算
-                qty_total = qty_total + -self.position.currentQty
-            else:
-                # 反対売買の場合、ドテンできるように上限を引き上げる
-                qty_limit = qty_limit + -self.position.currentQty
+        # # 買いポジあり
+        # if self.position.currentQty > 0:
+        #     # 買い増し
+        #     if side == 'buy':
+        #         # 現在のポジ数を加算
+        #         qty_total = qty_total + self.position.currentQty
+        #     else:
+        #         # 反対売買の場合、ドテンできるように上限を引き上げる
+        #         qty_limit = qty_limit + self.position.currentQty
+        #
+        # # 売りポジあり
+        # if self.position.currentQty < 0:
+        #     # 売りまし
+        #     if side == 'sell':
+        #         # 現在のポジ数を加算
+        #         qty_total = qty_total + -self.position.currentQty
+        #     else:
+        #         # 反対売買の場合、ドテンできるように上限を引き上げる
+        #         qty_limit = qty_limit + -self.position.currentQty
 
         # 購入数をポジション最大サイズに抑える
         if qty_total > qty_limit:
@@ -189,13 +187,19 @@ class Strategy:
     def entry(self, myid, side, qty, limit=None, stop=None, trailing_offset=None, symbol=None):
         """注文"""
 
-        # 買いポジションがある場合、清算する
-        if side == 'sell' and self.position.currentQty > 0:
-            qty = qty + self.position.currentQty
+        # # 買いポジションがある場合、清算する
+        # if side == 'sell' and self.position.currentQty > 0:
+        #     qty = qty + self.position.currentQty
+        #
+        # # 売りポジションがある場合、清算する
+        # if side == 'buy' and self.position.currentQty < 0:
+        #     qty = qty - self.position.currentQty
 
-        # 売りポジションがある場合、清算する
-        if side == 'buy' and self.position.currentQty < 0:
-            qty = qty - self.position.currentQty
+        # qty validation
+        price = limit or self.ticker.ask if side == 'buy' else self.ticker.bid
+        if qty < price * 0.005:
+            self.logger.warning("Quantity validation. Order quantity %s JPY (%s BTC) is lower than 0.005 BTC" % (qty, qty/price))
+            return
 
         # 注文
         return self.order(myid, side, qty, limit=limit, stop=stop, trailing_offset=trailing_offset, symbol=symbol)
@@ -307,9 +311,6 @@ class Strategy:
                 }
                 self.yourlogic.bizlogic(self.yourlogic, **arg)
 
-                # 通常待ち
-                sleep(self.settings.interval)
-
             except ccxt.DDoSProtection as e:
                 self.logger.warning(type(e).__name__ + ": {0}".format(e))
                 errorWait = 30
@@ -331,6 +332,9 @@ class Strategy:
             except Exception as e:
                 self.logger.exception(e)
                 errorWait = 5
+
+            # 通常待ち
+            sleep(self.settings.interval)
 
         self.logger.info("Stop Trading")
 
