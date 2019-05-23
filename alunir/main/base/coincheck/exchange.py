@@ -224,7 +224,7 @@ class Exchange:
     def fetch_order_ws(self, order_id):
         orders = self.ws.all_orders()
         for o in orders:
-            if o['orderID'] == order_id:
+            if o['id'] == order_id:
                 order = Dotdict(self.exchange.parse_order(o))
                 order.info = Dotdict(order.info)
                 return order
@@ -241,7 +241,7 @@ class Exchange:
             order = Dotdict()
             order.myid = myid
             order.accepted_at = datetime.utcnow().strftime(DATETIME_FORMAT)
-            order.id = result.value['info']['orderID']
+            order.id = result.value['info']['id']
             order.status = 'accepted'
             order.symbol = symbol
             order.type = type.lower()
@@ -254,8 +254,6 @@ class Exchange:
             order.remaining = 0
             order.fee = 0
             self.om.add_order(order)
-            # self.logger.info("UPDATED ORDER: %s" % order)
-            # self.logger.info("ACTIVE ORDERS: %s" % self.om.get_open_orders())
         except ccxt.BadRequest as e:
             self.logger.warning("Returned BadRequest: %s" % str(e))
             result = Left("Returned BadRequest: %s" % str(e))
@@ -281,7 +279,7 @@ class Exchange:
 
             active_order.myid = myid
             active_order.accepted_at = datetime.utcnow().strftime(DATETIME_FORMAT)
-            active_order.id = result.value['info']['orderID']
+            active_order.id = result.value['info']['id']
             active_order.status = 'accepted'
             # order.symbol = symbol
             active_order.type = type.lower()
@@ -310,7 +308,7 @@ class Exchange:
         market = self.exchange.market(symbol)
         req = {'symbol': market['id']}
         res = self.exchange.privatePostOrderClosePosition(req)
-        self.logger.info("CLOSE: {orderID} {side} {orderQty} {price}".format(**res))
+        self.logger.info("CLOSE: {id} {order_type} {amount} {rate}".format(**res))
 
     def cancel_order(self, myid):
         """注文をキャンセル"""
@@ -323,7 +321,7 @@ class Exchange:
                     % (myid, details.id, details.symbol, details.type, details.side, details.qty, details.price)
                 )
                 res = self.exchange.cancel_order(details.id)
-                self.logger.info("CANCEL: {orderID} {side} {orderQty} {price}".format(**res['info']))
+                self.logger.info("CANCEL: {id} {order_type} {amount} {rate}".format(**res['info']))
             except ccxt.OrderNotFound as e:
                 self.logger.warning(type(e).__name__ + ": {0}".format(e))
             except Exception as e:
@@ -337,7 +335,7 @@ class Exchange:
         symbol = symbol or self.settings.symbol
         res = self.exchange.fetch_open_orders(symbol=symbol)
         for r in res:
-            self.logger.info("CANCEL: {orderID} {side} {orderQty} {price}".format(**r))
+            self.logger.info("CANCEL: {id} {order_type} {amount} {rate}".format(**r))
 
     def reconnect_websocket(self):
         # 再接続が必要がチェック
