@@ -207,7 +207,7 @@ class Strategy:
     def cancel(self, myid):
         return self.exchange.cancel_order(myid)
 
-    def update_ohlcv(self, ticker_time=None, force_update=False):
+    def update_ohlcv(self, loc_ticker_time=None, force_update=False):
         if self.settings.partial or force_update:
             self.ohlcv = self.exchange.fetch_ohlcv()
             self.ohlcv_updated = True
@@ -218,11 +218,12 @@ class Strategy:
             t1 = timestamp[-2]
             next_fetch_time = t0 + (t0 - t1)
             # 足取得
-            if ticker_time > next_fetch_time:
+            loc_next_fetch_time = next_fetch_time.tz_localize('Asia/Tokyo')
+            if loc_ticker_time > loc_next_fetch_time:
                 self.ohlcv = self.exchange.fetch_ohlcv()
                 # 更新確認
                 timestamp = self.ohlcv.index
-                if timestamp[-1] >= next_fetch_time:
+                if timestamp[-1] >= loc_next_fetch_time:
                     self.ohlcv_updated = True
 
     def setup(self):

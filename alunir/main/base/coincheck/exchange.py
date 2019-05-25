@@ -143,7 +143,7 @@ class Exchange:
         ticker.bids = book['bids']
         ticker.asks = book['asks']
         ticker.last = trade[0]['price']
-        ticker.datetime = pd.to_datetime(trade[0]['datetime'])
+        ticker.datetime = pd.to_datetime(trade[0]['datetime'], utc=True).tz_convert('Asia/Tokyo')
         self.logger.info("TICK: bid {bid} ask {ask} last {last}".format(**ticker))
         self.logger.info("TRD: price {rate} size {amount} side {order_type} ".format(**(trade[0]['info'])))
         return ticker, trade
