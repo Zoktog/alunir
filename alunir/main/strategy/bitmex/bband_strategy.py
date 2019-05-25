@@ -8,7 +8,7 @@ multi = 2
 
 
 class BbandStrategy(StrategyBase):
-    def use(self, *args):
+    def use(self, strategy, *args):
         pass
 
     def bizlogic(self, ohlcv, ticker, position, balance, executions, strategy, **other):

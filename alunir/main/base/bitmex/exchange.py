@@ -356,7 +356,7 @@ class Exchange:
         if self.ws is None:
             need_reconnect = True
         else:
-            if self.ws.connected == False:
+            if self.ws.ws.sock.connected == False:
                 self.ws.exit()
                 need_reconnect = True
 
@@ -379,4 +379,4 @@ class Exchange:
                     api_secret=self.settings.secret
                 )
             # ネットワーク負荷の高いトピックの配信を停止
-            self.ws.unsubscribe(['orderBookL2'])
+            # self.ws.unsubscribe(['orderBookL2'])
