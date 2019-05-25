@@ -200,7 +200,7 @@ class BitMEXWebsocket:
             args = []
         self.ws.send(json.dumps({"op": command, "args": args}))
 
-    def __on_message(self, ws, message):
+    def __on_message(self, message):
         '''Handler for parsing WS messages.'''
         message = json.loads(message)
         self.logger.debug(json.dumps(message))
@@ -323,17 +323,17 @@ class BitMEXWebsocket:
         except:
             self.logger.error(traceback.format_exc())
 
-    def __on_error(self, ws, error):
+    def __on_error(self, error):
         '''Called on fatal websocket errors. We exit on these.'''
         if not self.exited:
             self.logger.error("Error : %s" % error)
             raise websocket.WebSocketException(error)
 
-    def __on_open(self, ws):
+    def __on_open(self):
         '''Called when the WS opens.'''
         self.logger.debug("Websocket Opened.")
 
-    def __on_close(self, ws):
+    def __on_close(self):
         '''Called on websocket close.'''
         self.logger.info('Websocket Closed')
 
@@ -375,17 +375,17 @@ class BitMEXWebsocket:
     
         """
 
-
-if __name__ == '__main__':
-    cfg = SystemUtil(skip=True)
-    ep = "https://www.bitmex.com/api/v1"
-    ex = BitMEXWebsocket(
-        symbol='XBTUSD',
-        endpoint=ep,
-        api_key=cfg.get_env("BITMEX_API_KEY"),
-        api_secret=cfg.get_env("BITMEX_SECRET_API_KEY")
-    )
-    ex.get_instrument()
-    if(ex.ws.sock.connect):
-        ticker = ex.get_ticker()
-        print(ticker)
+#
+# if __name__ == '__main__':
+#     cfg = SystemUtil(skip=True)
+#     ep = "https://www.bitmex.com/api/v1"
+#     ex = BitMEXWebsocket(
+#         symbol='XBTUSD',
+#         endpoint=ep,
+#         api_key=cfg.get_env("BITMEX_API_KEY"),
+#         api_secret=cfg.get_env("BITMEX_SECRET_API_KEY")
+#     )
+#     ex.get_instrument()
+#     if(ex.ws.sock.connect):
+#         ticker = ex.get_ticker()
+#         print(ticker)
