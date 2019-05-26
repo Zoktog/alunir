@@ -312,19 +312,19 @@ class Strategy:
                 self.yourlogic.bizlogic(self.yourlogic, **arg)
 
             except ccxt.DDoSProtection as e:
-                self.logger.warning(type(e).__name__ + ": {0}".format(e))
+                self.logger.exception(type(e).__name__ + ": {0}".format(e))
                 errorWait = 30
             except ccxt.RequestTimeout as e:
-                self.logger.warning(type(e).__name__ + ": {0}".format(e))
+                self.logger.exception(type(e).__name__ + ": {0}".format(e))
                 errorWait = 5
             except ccxt.ExchangeNotAvailable as e:
-                self.logger.warning(type(e).__name__ + ": {0}".format(e))
+                self.logger.exception(type(e).__name__ + ": {0}".format(e))
                 errorWait = 20
             except ccxt.AuthenticationError as e:
-                self.logger.warning(type(e).__name__ + ": {0}".format(e))
+                self.logger.exception(type(e).__name__ + ": {0}".format(e))
                 break
             except ccxt.ExchangeError as e:
-                self.logger.warning(type(e).__name__ + ": {0}".format(e))
+                self.logger.exception(type(e).__name__ + ": {0}".format(e))
                 errorWait = 5
             except (KeyboardInterrupt, SystemExit):
                 self.logger.info('Shutdown!')
