@@ -215,8 +215,9 @@ class Exchange:
     def fetch_order(self, order_id):
         order = Dotdict({'status': 'closed', 'id': order_id})
         try:
-            order = Dotdict(self.exchange.fetch_order(order_id))
-            order.info = Dotdict(order.info)
+            order = Dotdict(self.exchange.parse_order(self.exchange.fetch_open_orders(order_id)))
+            # order.info = Dotdict(order.info)
+            order.status = 'open'
         except ccxt.OrderNotFound as e:
             self.logger.warning(type(e).__name__ + ": {0}".format(e))
         return order

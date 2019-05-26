@@ -161,7 +161,7 @@ class Strategy:
                     # オーダータイプが異なる or STOP注文がトリガーされたら編集に失敗するのでキャンセルしてから新規注文する
                     order_type = 'stop' if stop is not None else ''
                     order_type = order_type + 'limit' if limit is not None else order_type
-                    if (order_type != order.type) or (order.type == 'stoplimit' and order.info.triggered == 'StopOrderTriggered'):
+                    if (order_type != order.order_type) or (order.order_type == 'stoplimit'):
                         # 注文キャンセルに失敗した場合、ポジション取得からやり直す
                         self.exchange.cancel_order(myid)
                         order = self.create_order(myid, side, qty, limit, stop, trailing_offset, symbol)
