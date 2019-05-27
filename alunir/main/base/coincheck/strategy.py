@@ -214,16 +214,19 @@ class Strategy:
         else:
             # 次に足取得する時間
             timestamp = self.ohlcv.index
-            t0 = timestamp[-1]
-            t1 = timestamp[-2]
-            next_fetch_time = t0 + (t0 - t1)
-            # 足取得
-            if ticker_time > next_fetch_time.tz_localize('Asia/Tokyo'):
+            if len(timestamp) > 2:
+                t0 = timestamp[-1]
+                t1 = timestamp[-2]
+                next_fetch_time = t0 + (t0 - t1)
+                # 足取得
+                if ticker_time > next_fetch_time.tz_localize('Asia/Tokyo'):
+                    self.ohlcv = self.exchange.fetch_ohlcv()
+                    # 更新確認
+                    timestamp = self.ohlcv.index
+                    if timestamp[-1] >= next_fetch_time:
+                        self.ohlcv_updated = True
+            else:
                 self.ohlcv = self.exchange.fetch_ohlcv()
-                # 更新確認
-                timestamp = self.ohlcv.index
-                if timestamp[-1] >= next_fetch_time:
-                    self.ohlcv_updated = True
 
     def setup(self):
         validate(self, "self.settings.apiKey")
